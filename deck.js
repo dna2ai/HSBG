@@ -156,30 +156,18 @@ var G = {
          var ecur = (cur + 1) % 2;
          var friends, enemies;
          var result = {};
-         if (env.attacker === m) {
-            friends = G.event.slots.minions[cur];
-            enemies = G.event.slots.minions[ecur];
+         var in0 = G.event.slots.minions[cur];
+         var in1 = G.event.slots.minions[ecur];
+         if (in0.indexOf(m) >= 0) {
+            friends = in0;
+            enemies = in1;
             result.cur = cur;
             result.ecur = ecur;
-         } else if (env.defenser === m) {
-            friends = G.event.slots.minions[ecur];
-            enemies = G.event.slots.minions[cur];
+         } else {
+            friends = in1;
+            enemies = in0;
             result.cur = ecur;
             result.ecur = cur;
-         } else {
-            var in0 = G.event.slots.minions[cur];
-            var in1 = G.event.slots.minions[ecur];
-            if (in0.indexOf(m) >= 0) {
-               friends = in0;
-               enemies = in1;
-               result.cur = cur;
-               result.ecur = ecur;
-            } else {
-               friends = in1;
-               enemies = in0;
-               result.cur = ecur;
-               result.ecur = cur;
-            }
          }
          result.f = friends;
          result.e = enemies;
@@ -208,8 +196,6 @@ var G = {
          });
          return list;
       },
-      initMinions: function (slot) {
-      },
       delMinion: function (m, env) {
          var slot = G.event.getFriendEnemySlot(m, env);
          var p = slot.f.indexOf(m);
@@ -225,6 +211,7 @@ var G = {
          if (index < firstM) firstM += n;
          slot.splice(index, 0, ...queue.slice(0, n));
       },
+      initMinions: function (slot) {},
       triggerAttack: function (m, env) {},
       triggerDefense: function (m, env) {},
       triggerOutOfShield: function (m, env) {},
@@ -384,243 +371,395 @@ function Version20200728 () {
       new Minion(20, 2, 3, 1, { poison: true }, 'emperor cobra'),
       new Minion(21, 1, 1, 1, {}, 'snake')
    ];
-   G.event.triggerAttack = function (m) {
+   var constants = {
+      deathrattle: [
+         104, 105, 112, 114, 204, 205, 206, 207, 214,
+         216, 218, 311, 315, 316, 321, 411, 414, 505,
+         508, 516, 518, 604, 607, 610, 611, 17
+      ]
+   };
+   G.event.initMinions = function (slot) {
+      // 215 southsea captain
+      // 416 siegebreaker
+      // 510 mal\'ganis
+   };
+
+   G.event.triggerAttack = function (m, env) {
+      var slot = G.event.getFriendEnemySlot(m, env);
+      // x 313 monstrous macaw
       if (m.id === 313) {
-         // monstrous macaw
+         var available = slot.f.filter(function (x) {
+            if (constants.deathrattle.indexOf(x.id) >= 0) return true;
+            if (x.flags.deathrattle && x.flags.deathrattle.length > 0) return true;
+            return false;
+         });
+         var target = randomPick(available);
+         var subenv = { attacker: slot.e[0], defense: target };
+         G.event.triggerDead(target, subenv, true);
       }
-      // 219 waxrider togwaggle
-      // 413 ripsnarl captain
-      // 601 dread admiral eliza
+
+      // x 203 glyph guardian
+      if (m.id === 203) {
+         var atk = m.atk + m.flags.buff_atk;
+         if (m.flags.tri) {
+            atk *= 3;
+         } else {
+            atk *= 2;
+         }
+         m.flags.buff_atk = atk - m.atk;
+      }
+
+      // x 413 ripsnarl captain
+      // x 601 dread admiral eliza
+      if (m.type === 6) {
+         var times = 0;
+         var m413s = slot.f.filter(function (x) {
+            return x.id === 413;
+         });
+         m413s.forEach(function (x) {
+            if (x === m) return;
+            times ++;
+            if (x.flags.tri) times ++;
+         });
+         if (times > 0) {
+            m.buff_hp += times * 2;
+            m.buff_atk += times * 2;
+         }
+
+         times = 0;
+         var m601s = slot.f.filter(function (x) {
+            return x.id === 601;
+         });
+         m601s.forEach(function (x) {
+            times ++;
+            if (x.flags.tri) times ++;
+         });
+         if (times > 0) {
+            slot.f.forEach(function (x) {
+               x.buff_hp += times;
+               x.buff_atk += times;
+            });
+         }
+      }
+
+      // x 219 waxrider togwaggle
+      if (m.type === 5) {
+         if (env.defenser.hp + env.defenser.flags.buff_hp <= 0) {
+            var m219s = slot.f.filter(function (x) {
+               return x.id === 219;
+            });
+            m219s.forEach(function (x) {
+               x.flags.buff_hp += 2;
+               x.flags.buff_atk += 2;
+               if (x.flags.tri) {
+                  x.flags.buff_hp += 2;
+                  x.flags.buff_atk += 2;
+               }
+            });
+         }
+      }
+
+      // 201 arcane cannon
+      // 403 cave hydra
+      // 602 foe reaper 4000
    };
-   G.event.triggerDefense = function (m) {
+   G.event.triggerDefense = function (m, env) {
+      // 323 yo-ho-ogre
       if (m.id === 323) {
-         // yo-ho-ogre
       }
    };
-   G.event.triggerOutShield = function (m) {
-      // 402 bolvar, fireblood
-      // 406 drakonid enforcer
+   G.event.triggerOutShield = function (m, env) {
+      // x 402 bolvar, fireblood
+      // x 406 drakonid enforcer
+      var slot = G.event.getFriendEnemySlot(m, env);
+      slot.f.forEach(function (x) {
+         if (x.flags.dead) return;
+         if (x.hp + x.flags.buff_hp <= 0) return;
+         if (x.id !== 402) return;
+         x.flags.buff_atk += 2;
+         if (x.flags.tri) {
+            x.flags.buff_atk += 2;
+         }
+      });
+      slot.f.filter(function (x) {
+         if (x.flags.dead) return;
+         if (x.hp + x.flags.buff_hp <= 0) return;
+         if (x.id !== 406) return;
+         x.flags.buff_atk += 2;
+         x.flags.buff_hp += 2;
+         if (x.flags.tri) {
+            x.flags.buff_atk += 2;
+            x.flags.buff_hp += 2;
+         }
+      });
    };
-   G.event.triggerDamaged = function (m) {
+   G.event.triggerDamaged = function (m, env) {
+      var slot = G.event.getFriendEnemySlot(m, env);
+      var m312s = slot.f.filter(function (x) {
+         if (x.flags.dead) return false;
+         if (x.hp + x.flags.buff_hp <= 0) return false;
+         return x.id === 312;
+      });
+      var m312 = 0;
+      if (m312s.length) m312 = m312s.map(function (x) { return x.flags.tri?2:1; }).reduce(function (x, y) { return x+y; });
+      // 310 imp gang boss
       // 415 security rover
       // 605 imp mama
    };
-   G.event.triggerDead = function (m, env) {
+   G.event.triggerDead = function (m, env, skipDeadBuff) {
       var slot = G.event.getFriendEnemySlot(m, env);
       var m312s = slot.f.filter(function (x) {
+         if (x.flags.dead) return false;
+         if (x.hp + x.flags.buff_hp <= 0) return false;
          return x.id === 312;
       });
       var m602s = slot.f.filter(function (x) {
+         if (x.flags.dead) return false;
+         if (x.hp + x.flags.buff_hp <= 0) return false;
          return x.id === 602;
       });
       var m602 = 1;
       if (m602s.length) m602 = m602s.map(function (x) { return x.flags.tri?3:2; }).reduce(function (x, y) { return x>y?x:y; });
       var m312 = 0;
       if (m312s.length) m312 = m312s.map(function (x) { return x.flags.tri?2:1; }).reduce(function (x, y) { return x+y; });
-      // x 104 fiendish servant
-      // 105 mecharoo
-      // 112 scallywag
-      // x 114 selfless hero
-      // 204 harvest golem
-      // 205 imprisoner
-      // x 206 kaboom bot
-      // 207 kindly grandmother
-      // 214 rat pack
-      // x 216 spawn of n\'zoth
-      // x 218 unstable ghoul
-      // 311 infested wolf
-      // 315 piloted shredder
-      // 316 replicating menace
-      // 321 the beast
-      // 411 mechano-egg
-      // 414 savannah highmane
-      // x 505 goldrinn, the great wolf
-      // x 508 king bagurgle
-      // 516 sneed\'s old shredder
-      // 518 voidlord
-      // 604 ghastcoiler
-      // 607 kangor\'s apprentiee
-      // x 610 nadina the red
-      // 611 the tide razor
-      //  17 treasure chest
-      switch(m.id) {
-         case 104: { // fiendish servant
-            var times = m602, i = 0;
-            if (m.flags.tri) times *= 2;
-            var targets = [];
-            for (i = 0; i < times; i ++) {
-               var target = G.event.getRandomMinion(slot.f);
-               if (!target) break;
-               target.flags.buff_atk += m.atk + m.buff_atk;
-            }
-         } break;
-         case 114: { // selfless hero
-            var times = m602, i = 0;
-            if (m.flags.tri) times *= 2;
-            var targets = [];
-            var available = slot.f.filter(function (x) {
-               if (x.hp + x.flags.buff_hp <= 0) return false;
-               if (x.flags.dead) return false;
-               if (x.flags.shield) return false;
-               return true;
-            });
-            shuffle(available);
-            times = available.length < times? available.length : times;
-            for (i = 0; i < times; i ++) {
-               available[i].flags.shield = true;
-            }
-         } break;
-         case 206: { // kaboom bot
-            var times = m602, i = 0;
-            if (m.flags.tri) times *= 2;
-            var targets = [];
-            for (i = 0; i < times; i ++) {
-               var target = G.event.getRandomMinion(slot.e);
-               if (!target) break;
-               targets.push(target);
-            }
-            if (targets.length) {
-               var firstM = G.event.slots.first[slot.ecur];
-               G.event.orderMinions(targets, firstM).forEach(function (target) {
-                  var subenv = { attacker: m, defenser: target };
-                  if (T.debug) { T.steps.push([m.clone(), target.clone()]); } // debug
-                  if (target.flags.shield) {
-                     target.flags.shield = false;
-                     G.event.triggerOutOfShield(target, subenv);
-                  } else {
-                     target.hp -= 4;
-                     G.event.triggerDamaged(target, subenv);
-                     if (target.hp + target.flags.buff_hp <= 0) {
-                        G.event.triggerDead(target, subenv);
-                        G.event.delMinion(target, subenv);
-                     }
-                  }
-               });
-            }
-         } break;
-         case 216: { // spawn of n\'zoth
-            var times = m602;
-            if (m.flags.tri) times *= 2;
-            slot.f.forEach(function (m) {
-               m.flags.buff_atk += times;
-               m.flags.buff_hp += times;
-            });
-         } break;
-         case 218: { // unstable ghoul
-            var times = m602, i = 0;
-            var senv1 = { attacker: slot.f[0], defenser: null };
-            var senv2 = { attacker: slot.e[0], defenser: null };
-            if (m.flags.tri) times *= 2;
-            for (i = 0; i < times; i++) {
-               G.event.orderMinions(slot.f).forEach(function (mf) {
-                  if (mf === m) return;
-                  senv2.defenser = mf;
-                  if (m.flags.shield) {
-                     mf.flags.shield = false;
-                     G.event.triggerOutOfShield(mf, senv2);
-                  } else {
-                     mf.hp -= 1;
-                     G.event.triggerDamaged(mf, senv2);
-                     if (mf.hp + mf.flags.buff_hp <= 0) {
-                        G.event.triggerDead(mf, senv2);
-                        G.event.delMinion(mf, senv2);
-                     }
-                  }
-               });
-               G.event.orderMinions(slot.e).forEach(function (me) {
-                  senv1.defenser = me;
-                  if (me.flags.shield) {
-                     me.flags.shield = false;
-                     G.event.triggerOutOfShield(me, senv1);
-                  } else {
-                     me.hp -= 1;
-                     G.event.triggerDamaged(me, senv1);
-                     if (me.hp + me.flags.buff_hp <= 0) {
-                        G.event.triggerDead(me, senv1);
-                        G.event.delMinion(me, senv1);
-                     }
-                  }
-               });
-            }
-         } break;
-         case 508: { // king bagurgle
-            var times = m602;
-            if (m.flags.tri) times *= 2;
-            slot.f.forEach(function (m) {
-               if (m.type !== 3) return; // murloc
-               m.flags.buff_atk += 2 * times;
-               m.flags.buff_hp += 2 * times;
-            });
-         } break;
-         case 505: { // goldrinn, the great wolf
-            var times = m602;
-            if (m.flags.tri) times *= 2;
-            slot.f.forEach(function (m) {
-               if (m.type !== 1) return; // beast
-               m.flags.buff_atk += 4 * times;
-               m.flags.buff_hp += 4 * times;
-            });
-         } break;
-         case 610: { // nadina the red
-            var times = m602;
-            if (m.flags.tri) times *= 2;
-            slot.f.forEach(function (m) {
-               if (m.type !== 5) return; // dragon
-               m.flags.buff_atk += times;
-               m.flags.buff_hp += times;
-            });
-         } break;
+
+      processOne(m, env);
+      if (m.flags.deathrattle) {
+         m.flags.deathrattle.forEach(function (deathrattle) {
+            // deathrattle -> Minion
+            processOne(deathrattle, env);
+         });
+      }
+      if (!skipDeadBuff) {
+         deadBuff(m, env);
       }
 
-      // 113 scaveging hyena
-      if (m.type === 1) { // beast
-         var m113s = slot.f.filter(function (x) {
-            return x.id === 113;
-         });
-         m113s.forEach(function (x) {
-            if (x === m) return;
-            x.flags.buff_hp += 1;
-            x.flags.buff_atk += 2;
-            if (x.flags.tri) {
-               x.flags.buff_hp += 1;
-               x.flags.buff_atk += 2;
-            }
-         });
-      }
-      // 507 junkbot
-      // 607 kangor\'s apprentiee
-      if (m.type === 2) { // mech
-         var m507s = slot.f.filter(function (x) {
-            return x.id === 507;
-         });
-         m507s.forEach(function (x) {
-            if (x === m) return;
-            x.flags.buff_hp += 2;
-            x.flags.buff_atk += 2;
-            if (x.flags.tri) {
+      function deadBuff(m, env) {
+         // x 507 junkbot
+         // x 607 kangor\'s apprentiee
+         if (m.type === 2) { // mech
+            var m507s = slot.f.filter(function (x) {
+               return x.id === 507;
+            });
+            m507s.forEach(function (x) {
+               if (x === m) return;
                x.flags.buff_hp += 2;
                x.flags.buff_atk += 2;
+               if (x.flags.tri) {
+                  x.flags.buff_hp += 2;
+                  x.flags.buff_atk += 2;
+               }
+            });
+            var m607s = slot.f.filter(function x() {
+               return x.id === 607;
+            })
+            m607s.forEach(function (x) {
+               if (!x.flags.pool) x.flags.pool = [];
+               if (x.flags.pool.length >= 2) return;
+               x.flags.pool.push(m);
+            });
+         }
+   
+         // x 302 bronze warden
+         if (m.id === 302 && m.flags.reborn) {
+            var times = 1 + m312, i = 0, queue = [];
+            for (i = 0; i < times; i++) {
+               var m = api.newMinionById(302);
+               m.flags.reborn = false;
+               queue.push(m);
             }
-         });
-         var m607s = slot.f.filter(function x() {
-            return x.id === 607;
-         })
-         m607s.forEach(function (x) {
-            if (!x.flags.pool) x.flags.pool = [];
-            if (x.flags.pool.length >= 2) return;
-            x.flags.pool.push(m);
-         });
+            G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
+         }
+
+         // 320 soul juggler
+         // 215 southsea captain
+         // 416 siegebreaker
+         // 510 mal\'ganis
       }
 
-      // 302 bronze warden
-      if (m.id === 302 && m.flags.reborn) {
-         var times = 1 + m312, i = 0, queue = [];
-         for (i = 0; i < times; i++) {
-            var m = api.newMinionById(302);
-            m.flags.reborn = false;
-            queue.push(m);
+      function processOne(m, env) {
+         // x 104 fiendish servant
+         // 105 mecharoo
+         // 112 scallywag
+         // x 114 selfless hero
+         // 204 harvest golem
+         // 205 imprisoner
+         // x 206 kaboom bot
+         // 207 kindly grandmother
+         // 214 rat pack
+         // x 216 spawn of n\'zoth
+         // x 218 unstable ghoul
+         // 311 infested wolf
+         // 315 piloted shredder
+         // 316 replicating menace
+         // 321 the beast
+         // 411 mechano-egg
+         // 414 savannah highmane
+         // x 505 goldrinn, the great wolf
+         // x 508 king bagurgle
+         // 516 sneed\'s old shredder
+         // 518 voidlord
+         // 604 ghastcoiler
+         // 607 kangor\'s apprentiee
+         // x 610 nadina the red
+         // 611 the tide razor
+         //  17 treasure chest
+         switch(m.id) {
+            case 104: { // fiendish servant
+               var times = m602, i = 0;
+               if (m.flags.tri) times *= 2;
+               var targets = [];
+               for (i = 0; i < times; i ++) {
+                  var target = G.event.getRandomMinion(slot.f);
+                  if (!target) break;
+                  target.flags.buff_atk += m.atk + m.buff_atk;
+               }
+            } break;
+            case 114: { // selfless hero
+               var times = m602, i = 0;
+               if (m.flags.tri) times *= 2;
+               var targets = [];
+               var available = slot.f.filter(function (x) {
+                  if (x.hp + x.flags.buff_hp <= 0) return false;
+                  if (x.flags.dead) return false;
+                  if (x.flags.shield) return false;
+                  return true;
+               });
+               shuffle(available);
+               times = available.length < times? available.length : times;
+               for (i = 0; i < times; i ++) {
+                  available[i].flags.shield = true;
+               }
+            } break;
+            case 206: { // kaboom bot
+               var times = m602, i = 0;
+               if (m.flags.tri) times *= 2;
+               var targets = [];
+               for (i = 0; i < times; i ++) {
+                  var target = G.event.getRandomMinion(slot.e);
+                  if (!target) break;
+                  targets.push(target);
+               }
+               if (targets.length) {
+                  var firstM = G.event.slots.first[slot.ecur];
+                  G.event.orderMinions(targets, firstM).forEach(function (target) {
+                     var subenv = { attacker: m, defenser: target };
+                     if (T.debug) { T.steps.push([m.clone(), target.clone()]); } // debug
+                     if (target.flags.shield) {
+                        target.flags.shield = false;
+                        G.event.triggerOutOfShield(target, subenv);
+                     } else {
+                        target.hp -= 4;
+                        G.event.triggerDamaged(target, subenv);
+                        if (target.hp + target.flags.buff_hp <= 0) {
+                           G.event.triggerDead(target, subenv);
+                           G.event.delMinion(target, subenv);
+                        }
+                     }
+                  });
+               }
+            } break;
+            case 216: { // spawn of n\'zoth
+               var times = m602;
+               if (m.flags.tri) times *= 2;
+               slot.f.forEach(function (m) {
+                  m.flags.buff_atk += times;
+                  m.flags.buff_hp += times;
+               });
+            } break;
+            case 218: { // unstable ghoul
+               var times = m602, i = 0;
+               var senv1 = { attacker: slot.f[0], defenser: null };
+               var senv2 = { attacker: slot.e[0], defenser: null };
+               if (m.flags.tri) times *= 2;
+               for (i = 0; i < times; i++) {
+                  var death = [];
+                  G.event.orderMinions(slot.f).forEach(function (mf) {
+                     if (mf === m) return;
+                     if (mf.hp + mf.flags.buff_hp <= 0) return;
+                     senv2.defenser = mf;
+                     if (m.flags.shield) {
+                        mf.flags.shield = false;
+                        G.event.triggerOutOfShield(mf, senv2);
+                     } else {
+                        mf.hp -= 1;
+                        G.event.triggerDamaged(mf, senv2);
+                        if (mf.hp + mf.flags.buff_hp <= 0) {
+                           death.push(mf);
+                        }
+                     }
+                  });
+                  death.forEach(function (mf) {
+                     senv2.defenser = mf;
+                     G.event.triggerDead(mf, senv2);
+                     G.event.delMinion(mf, senv2);
+                  });
+                  death = [];
+                  G.event.orderMinions(slot.e).forEach(function (me) {
+                     if (me.hp + me.flags.buff_hp <= 0) return;
+                     senv1.defenser = me;
+                     if (me.flags.shield) {
+                        me.flags.shield = false;
+                        G.event.triggerOutOfShield(me, senv1);
+                     } else {
+                        me.hp -= 1;
+                        G.event.triggerDamaged(me, senv1);
+                        if (me.hp + me.flags.buff_hp <= 0) {
+                           death.push(me);
+                        }
+                     }
+                  });
+                  death.forEach(function (me) {
+                     senv1.defenser = me;
+                     G.event.triggerDead(me, senv1);
+                     G.event.delMinion(me, senv1);
+                  });
+               }
+            } break;
+            case 508: { // king bagurgle
+               var times = m602;
+               if (m.flags.tri) times *= 2;
+               slot.f.forEach(function (m) {
+                  if (m.type !== 3) return; // murloc
+                  m.flags.buff_atk += 2 * times;
+                  m.flags.buff_hp += 2 * times;
+               });
+            } break;
+            case 505: { // goldrinn, the great wolf
+               var times = m602;
+               if (m.flags.tri) times *= 2;
+               slot.f.forEach(function (m) {
+                  if (m.type !== 1) return; // beast
+                  m.flags.buff_atk += 4 * times;
+                  m.flags.buff_hp += 4 * times;
+               });
+            } break;
+            case 610: { // nadina the red
+               var times = m602;
+               if (m.flags.tri) times *= 2;
+               slot.f.forEach(function (m) {
+                  if (m.type !== 5) return; // dragon
+                  m.flags.buff_atk += times;
+                  m.flags.buff_hp += times;
+               });
+            } break;
          }
-         G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
+   
+         // x 113 scaveging hyena
+         if (m.type === 1) { // beast
+            var m113s = slot.f.filter(function (x) {
+               return x.id === 113;
+            });
+            m113s.forEach(function (x) {
+               if (x === m) return;
+               x.flags.buff_hp += 1;
+               x.flags.buff_atk += 2;
+               if (x.flags.tri) {
+                  x.flags.buff_hp += 1;
+                  x.flags.buff_atk += 2;
+               }
+            });
+         }
       }
    };
    G.event.triggerPostAttack = function (m, env) {
@@ -652,6 +791,8 @@ function Minion(id, atk, hp, type, flags) {
       noatk: false,
       windfury: false,
       superwindfury: false,
+      tri: false,
+      immune: false,
       buff_hp: 0,
       buff_atk: 0,
       deathrattle: [],
@@ -677,7 +818,7 @@ Minion.prototype = {
       };
 
       // atk=0 when Illidan Stormrage with mechano-egg (0 5)
-      if (env.atk > 0) {
+      if (env.atk > 0 && !another.flags.immune) {
          if (another.flags.shield) {
             another.flags.shield = false;
             env.shield2 = true;
@@ -691,7 +832,7 @@ Minion.prototype = {
          }
       }
 
-      if (env.atk2 > 0) {
+      if (env.atk2 > 0 && !this.flags.immune) {
          if (this.flags.shield) {
             this.flags.shield = false;
             env.shield = true;
@@ -768,5 +909,6 @@ for (var i = 0; i < n; i ++) {
    else if (r[0].length > 0) res.a ++;
    else if (r[1].length > 0) res.b ++;
    else res.tie ++;
+   console.log(r);
 }
 console.log(res, T);
