@@ -216,6 +216,7 @@ var G = {
       },
       initMinions: function (slot) {},
       triggerStart: function () {},
+      triggerPreAttack: function (m, env) {},
       triggerAttack: function (m, env) {},
       triggerDefense: function (m, env) {},
       triggerOutOfShield: function (m, env) {},
@@ -397,7 +398,7 @@ function Version20200728 () {
          return m.id;
       }), // for the tide razor
       demon: G.pool.filter(function (m) {
-         return (m.type === 4 || m.type === 99) && m.id > 100;
+         return (m.type === 4 || m.type === 99) && m.id > 100 && m.id !== 605;
       }).map(function (m) {
          return m.id;
       }), // for imp mama
@@ -471,7 +472,7 @@ function Version20200728 () {
       countBeastSummonBuff: function (slot, buff) {
          // 314 pack leader
          // 609 mama bear
-         var m314s = slot.f.filter(function (x) {
+         var m314s = slot.filter(function (x) {
             if (x.hp <= 0) return false;
             if (x.flags.dead) return false;
             return x.id === 314;
@@ -479,7 +480,7 @@ function Version20200728 () {
          if (m314s.length > 0) {
             buff.m314 = m314s.map(function (x) { return x.flags.tri ? 2 : 1; }).reduce(function (x, y) { return x + y; });
          }
-         var m609s = slot.f.filter(function (x) {
+         var m609s = slot.filter(function (x) {
             if (x.hp <= 0) return false;
             if (x.flags.dead) return false;
             return x.id === 609;
@@ -493,7 +494,7 @@ function Version20200728 () {
       countDemonSummonBuff: function (slot, buff) {
          // 416 siegebreaker
          // 510 mal\'ganis
-         var m416s = slot.f.filter(function (x) {
+         var m416s = slot.filter(function (x) {
             if (x.hp <= 0) return false;
             if (x.flags.dead) return false;
             return x.id === 314;
@@ -501,7 +502,7 @@ function Version20200728 () {
          if (m416s.length > 0) {
             buff.m416 = m416s.map(function (x) { return x.flags.tri ? 2 : 1; }).reduce(function (x, y) { return x + y; });
          }
-         var m510s = slot.f.filter(function (x) {
+         var m510s = slot.filter(function (x) {
             if (x.hp <= 0) return false;
             if (x.flags.dead) return false;
             return x.id === 609;
@@ -514,7 +515,7 @@ function Version20200728 () {
       },
       countPirateSummonBuff: function (slot, buff) {
          // 215 southsea captain
-         var m215s = slot.f.filter(function (x) {
+         var m215s = slot.filter(function (x) {
             if (x.hp <= 0) return false;
             if (x.flags.dead) return false;
             return x.id === 314;
@@ -603,20 +604,9 @@ function Version20200728 () {
       // 109 red welp
    };
 
-   G.event.triggerAttack = function (m, env) {
+   G.event.triggerPreAttack = function (m, env) {
       var slot = G.event.getFriendEnemySlot(m, env);
-      // x 313 monstrous macaw
-      if (m.id === 313) {
-         var available = slot.f.filter(function (x) {
-            if (constants.deathrattle.indexOf(x.id) >= 0) return true;
-            if (x.flags.deathrattle && x.flags.deathrattle.length > 0) return true;
-            return false;
-         });
-         var target = randomPick(available);
-         var subenv = { attacker: slot.e[0], defense: target };
-         G.event.triggerDead(target, subenv, true);
-      }
-
+ 
       // x 203 glyph guardian
       if (m.id === 203) {
          if (m.flags.tri) {
@@ -657,6 +647,20 @@ function Version20200728 () {
                x.atk += times;
             });
          }
+      }
+   };
+   G.event.triggerAttack = function (m, env) {
+      var slot = G.event.getFriendEnemySlot(m, env);
+      // x 313 monstrous macaw
+      if (m.id === 313) {
+         var available = slot.f.filter(function (x) {
+            if (constants.deathrattle.indexOf(x.id) >= 0) return true;
+            if (x.flags.deathrattle && x.flags.deathrattle.length > 0) return true;
+            return false;
+         });
+         var target = randomPick(available);
+         var subenv = { attacker: slot.e[0], defense: target };
+         G.event.triggerDead(target, subenv, true);
       }
 
       // x 219 waxrider togwaggle
@@ -711,7 +715,7 @@ function Version20200728 () {
       });
    };
    G.event.triggerDamaged = function (m, env) {
-      if (m.id !== 310 || m.id !== 415 || m.id !== 605) return;
+      if (m.id !== 310 && m.id !== 415 && m.id !== 605) return;
       var slot = G.event.getFriendEnemySlot(m, env);
       var m312s = slot.f.filter(function (x) {
          if (x.flags.dead) return false;
@@ -723,6 +727,7 @@ function Version20200728 () {
 
       // x 310 imp gang boss
       if (m.id === 310) {
+         var buff = {};
          var queue = [];
          var n = 1 + m312;
          var template = api.newMinionById(6, m.flags.tri);
@@ -752,8 +757,10 @@ function Version20200728 () {
          var queue = [];
          var n = m.flags.tri?2:1;
          for (var i = 0; i < n && queue.length <= 7; i++) {
+            var buff = {};
             var sid = randomPick(constants.demon);
             var summon = api.newMinionById(sid, false);
+            summon.flags.taunt = true;
             helper.summonBeastBuff(summon, slot.f, buff);
             queue.push(summon);
             for (var j = m312; j > 0 && queue.length <= 7; j--) {
@@ -924,6 +931,7 @@ function Version20200728 () {
             case 17: { // treasure chest
                var queue = [];
                for (var i = 0; i < m602 && queue.length <= 7; i++) {
+                  var buff = {};
                   var sid = randomPick(constants.all);
                   var summon = api.newMinionById(sid, true);
                   // TODO: if we summon 602 or 312, how to summon more minions?
@@ -1231,6 +1239,7 @@ function Version20200728 () {
                var queue = [];
                var n = m602 * (m.flags.tri?2:1);
                for (var i = 0; i < n && queue.length <= 7; i++) {
+                  var buff = {};
                   var sid = randomPick(constants.orange);
                   var summon = api.newMinionById(sid, false);
                   // TODO: if we summon 602 or 312, how to summon more minions?
@@ -1269,6 +1278,7 @@ function Version20200728 () {
                var queue = [];
                var n = m602 * (m.flags.tri?4:2);
                for (var i = 0; i < n && queue.length <= 7; i++) {
+                  var buff = {};
                   var sid = randomPick(constants.deathrattle);
                   var summon = api.newMinionById(sid, false);
                   // TODO: if we summon 602 or 312, how to summon more minions?
@@ -1322,6 +1332,7 @@ function Version20200728 () {
                var queue = [];
                var n = m602 * 3;
                for (var i = 0; i < n && queue.length <= 7; i++) {
+                  var buff = {};
                   var sid = randomPick(constants.all);
                   var summon = api.newMinionById(sid, true);
                   helper.summonPirateBuff(summon, slot.f, buff);
@@ -1413,6 +1424,7 @@ Minion.prototype = {
          moreAttacks: []
       };
 
+      G.event.triggerPreAttack(this, env);
       // atk=0 when Illidan Stormrage with mechano-egg (0 5)
       if (env.atk > 0 && !another.flags.immune) {
          if (another.flags.shield) {
@@ -1524,9 +1536,14 @@ m206.flags.deathrattle = [api.newMinionById(316)];
 slotB.push(m206);
 */
 
+/*
 slotA.push(new Minion(0, 9, 10, 0, {}));
 slotB.push(api.newMinionById(313, false));
 slotB.push(api.newMinionById(206, false));
+*/
+
+slotA.push(new Minion(0, 5, 21, 0, {}));
+slotB.push(api.newMinionById(605, false));
 
 console.log(slotA, slotB);
 var res = { a: 0, b: 0, tie: 0 };
