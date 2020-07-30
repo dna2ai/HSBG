@@ -22,9 +22,7 @@ function shuffle(list) {
 
 var T = {
    debug: false,
-   trace: {
-      steps: []
-   }
+   steps: []
 };
 
 var G = {
@@ -71,6 +69,7 @@ var G = {
                firstM[cur] --;
                if (firstM[cur] < 0) firstM[cur] += firstM[cur].length;
             } else {
+               if (firstM[cur] > 0) firstM[cur] --;
                friends.shift();
             }
             if (md.hp <= 0) {
@@ -140,12 +139,25 @@ var G = {
          return offset;
       },
       getDefenser: function (attacker, enemies) {
-         // TODO: if attacker = (7, 10), attack min.atk enemy
-         var taunts = enemies.filter(function (x) { return x.flags.taunt; });
+         var available = enemies.filter(function (x) {
+            return x.hp > 0 && !x.flags.dead;
+         });
+         // if attacker = 612 (7 10), attack min.atk enemy
+         if (attacker.flags.atk === 'min') {
+            var atksort = available.slice().sort(function (x, y) {
+               return x.atk - y.atk;
+            });
+            var minatk = atksort.filter(function (x) {
+               return x.atk === atksort[0].atk;
+            });
+            return randomPick(minatk);
+         }
+
+         var taunts = available.filter(function (x) { return x.flags.taunt; });
          if (taunts.length) {
             return randomPick(taunts);
          }
-         return randomPick(enemies);
+         return randomPick(available);
       },
       getRandomMinion: function (slot) {
          var minions = slot.filter(function (x) {
@@ -352,7 +364,7 @@ function Version20200728 () {
       new Minion(609, 5, 5, 1, {}, 'mama bear'),
       new Minion(610, 7, 4, 0, {}, 'nadina the red'),
       new Minion(611, 6, 4, 0, {}, 'the tide razor'),
-      new Minion(612, 7, 10, 0, { windfury: true }, 'zapp slywick'),
+      new Minion(612, 7, 10, 0, { windfury: true, atk: 'min' }, 'zapp slywick'),
       // new Minion(505, 4, 4, 1, {}, 'goldrinn, the great wolf'), move goldrinn to Tier 6
       // new Minion(614, 6, 6, 99, {}, 'amalgadon'),
       // Unpurchsable
@@ -378,6 +390,7 @@ function Version20200728 () {
       new Minion(20, 2, 3, 1, { poison: true }, 'emperor cobra'),
       new Minion(21, 1, 1, 1, {}, 'snake'),
       // Deathrattle
+      new Minion(98, 3, 1, 5, { immune: true }, 'herald of flame # overkill'),
       new Minion(99, 0, 0, 0, {}, '#seeds') // summon 2 (plant)s
    ];
    var constants = {
@@ -468,6 +481,26 @@ function Version20200728 () {
                   break;
             }
          });
+      },
+      countM312: function (slot) {
+         var m312s = slot.filter(function (x) {
+            if (x.flags.dead) return false;
+            if (x.hp <= 0) return false;
+            return x.id === 312;
+         });
+         var m312 = 0;
+         if (m312s.length) m312 = m312s.map(function (x) { return x.flags.tri?2:1; }).reduce(function (x, y) { return x+y; });
+         return m312;
+      },
+      countM602: function (slot) {
+         var m602s = slot.filter(function (x) {
+            if (x.flags.dead) return false;
+            if (x.hp <= 0) return false;
+            return x.id === 602;
+         });
+         var m602 = 1;
+         if (m602s.length) m602 = m602s.map(function (x) { return x.flags.tri?3:2; }).reduce(function (x, y) { return x>y?x:y; });
+         return m602;
       },
       countBeastSummonBuff: function (slot, buff) {
          // 314 pack leader
@@ -717,13 +750,7 @@ function Version20200728 () {
    G.event.triggerDamaged = function (m, env) {
       if (m.id !== 310 && m.id !== 415 && m.id !== 605) return;
       var slot = G.event.getFriendEnemySlot(m, env);
-      var m312s = slot.f.filter(function (x) {
-         if (x.flags.dead) return false;
-         if (x.hp <= 0) return false;
-         return x.id === 312;
-      });
-      var m312 = 0;
-      if (m312s.length) m312 = m312s.map(function (x) { return x.flags.tri?2:1; }).reduce(function (x, y) { return x+y; });
+      var m312 = helper.countM312(slot.f);
 
       // x 310 imp gang boss
       if (m.id === 310) {
@@ -740,7 +767,7 @@ function Version20200728 () {
       }
 
       // x 415 security rover
-      if (m.id === 310) {
+      if (m.id === 415) {
          var queue = [];
          var n = 1 + m312;
          var template = api.newMinionById(4, m.flags.tri);
@@ -784,20 +811,8 @@ function Version20200728 () {
    };
    G.event.triggerDead = function (m, env, skipDeadBuff) {
       var slot = G.event.getFriendEnemySlot(m, env);
-      var m312s = slot.f.filter(function (x) {
-         if (x.flags.dead) return false;
-         if (x.hp <= 0) return false;
-         return x.id === 312;
-      });
-      var m602s = slot.f.filter(function (x) {
-         if (x.flags.dead) return false;
-         if (x.hp <= 0) return false;
-         return x.id === 602;
-      });
-      var m602 = 1;
-      if (m602s.length) m602 = m602s.map(function (x) { return x.flags.tri?3:2; }).reduce(function (x, y) { return x>y?x:y; });
-      var m312 = 0;
-      if (m312s.length) m312 = m312s.map(function (x) { return x.flags.tri?2:1; }).reduce(function (x, y) { return x+y; });
+      var m602 = helper.countM602(slot.f);
+      var m312 = helper.countM312(slot.f);
 
       if (m.flags.deathrattle) {
          var cur = G.event.slots.minions[0] === slot.f?0:1;
@@ -1368,11 +1383,109 @@ function Version20200728 () {
       }
    };
    G.event.triggerPostAttack = function (m, env) {
-      // 409 herald of flame
-      // 506 ironhide direhorn
-      // 512 nat pagle, extreme angler
-      // 515 seabreaker goliath
-      // 612 zapp slywick
+      var slot = G.event.getFriendEnemySlot(m, env);
+
+      // x 409 herald of flame
+      if (m.id === 409 && env.overkill) {
+         var virtual = api.newMinionById(98, m.flags.tri);
+         virtual.flags.dead = true;
+         slot.f.push(virtual);
+         var efirst = G.event.slots.first[slot.ecur], ei = efirst;
+         var md = slot.e[ei];
+         var attacked = [];
+         while (md.hp > 0) {
+            attacked.push(md);
+            if (md.hp < virtual.atk) {
+               md.flags.dead = true;
+               ei = (ei + 1) % slot.e.length;
+               md = slot.e[ei];
+               continue;
+            }
+            break;
+         }
+         attacked.forEach(function (md) {
+            var env = { attacker: virtual, defenser: md };
+            if (T.debug) { T.steps.push([m.clone(), md.clone(), virtual.atk]); } // debug
+            virtual.attack(md);
+            if (md.hp <= 0) {
+               G.event.delMinion(md, env);
+            }
+         });
+         slot.f.pop();
+      }
+
+      // x 506 ironhide direhorn
+      if (m.id === 506 && env.overkill) {
+         var buff = {};
+         var m312 = helper.countM312(slot.f);
+         var queue = [];
+         var template = api.newMinionById(7, m.flags.tri);
+         helper.summonBeastBuff(template, slot.f, buff);
+         queue.push(template.clone());
+         for (var i = 0; i < m312; i++) {
+            var copy = tempalte.clone();
+            helper.summonBeastBuff(copy, slot.f, buff);
+            queue.push(copy);
+         }
+         G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1)
+      }
+
+      // x 512 nat pagle, extreme angler
+      if (m.id === 512 && env.overkill) {
+         var m312 = helper.countM312(slot.f);
+         var n = 1 + m312;
+         var queue = [];
+         var template = api.newMinionById(17, m.flags.tri);
+         for (var i = 0; i < n; i++) {
+            queue.push(template.clone());
+         }
+         G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1)
+      }
+
+      // x 515 seabreaker goliath
+      if (m.id === 512 && env.overkill) {
+         slot.f.forEach(function (mf) {
+            if (mf === m) return;
+            if (mf.type !== 6 && mf.type !== 99) return;
+            var val = m.flags.tri?4:2;
+            mf.hp += val;
+            mf.atk += val;
+         });
+      }
+
+      // windfury
+      // x 515 seabreaker goliath
+      // x 612 zapp slywick
+      if (m.id === 515 && m.hp > 0 && m.flags.windfury) {
+         var count = 2;
+         if (!m.flags.atkT) m.flags.atkT = 1;
+         if (m.flags.atkT < count) {
+            m.flags.atkT ++;
+            var md = G.event.getDefenser(m, slot.e);
+            if (T.debug) { T.steps.push([m.clone(), md.clone()]); } // debug
+            m.attack(md);
+            if (md.hp <= 0) {
+               G.event.delMinion(md, env);
+            }
+         } else {
+            m.flags.atkT = 1;
+         }
+      }
+      if (m.id === 612 && m.hp > 0 && m.flags.windfury) {
+         var count = m.flags.tri?4:2;
+         if (!m.flags.atkT) m.flags.atkT = 1;
+         if (m.flags.atkT < count) {
+            m.flags.atkT ++;
+            var md = G.event.getDefenser(m, slot.e);
+            if (T.debug) { T.steps.push([m.clone(), md.clone()]); } // debug
+            m.attack(md);
+            if (md.hp <= 0) {
+               G.event.delMinion(md, env);
+            }
+         } else {
+            m.flags.atkT = 1;
+         }
+      }
    };
 
    api.newMinionById = function (id, tri) {
@@ -1401,7 +1514,6 @@ function Minion(id, atk, hp, type, flags) {
       reborn: false,
       noatk: false,
       windfury: false,
-      superwindfury: false,
       tri: false,
       immune: false,
       deathrattle: [],
@@ -1542,18 +1654,46 @@ slotB.push(api.newMinionById(313, false));
 slotB.push(api.newMinionById(206, false));
 */
 
-slotA.push(new Minion(0, 5, 21, 0, {}));
+/*
+slotA.push(new Minion(0, 7, 20, 0, {}));
 slotB.push(api.newMinionById(605, false));
+*/
+
+/*
+slotA.push(new Minion(0, 7, 6, 0, {}));
+slotA.push(new Minion(0, 7, 6, 0, {}));
+slotB.push(api.newMinionById(506, false));
+slotB.push(new Minion(0, 1, 1, 0, {}));
+slotB.push(new Minion(0, 0, 1, 0, {}));
+*/
+
+/*
+slotA.push(new Minion(0, 1, 1, 0, {}));
+slotA.push(new Minion(0, 1, 1, 0, {}));
+slotA.push(new Minion(0, 1, 1, 0, {}));
+slotA.push(new Minion(0, 1, 1, 0, {}));
+slotA.push(new Minion(0, 1, 1, 0, {}));
+slotA.push(new Minion(0, 5, 4, 0, { taunt: true }));
+slotB.push(api.newMinionById(409, false));
+*/
+
+slotA.push(new Minion(0, 1, 1, 0, {}));
+slotA.push(new Minion(1, 3, 1, 0, {}));
+slotA.push(new Minion(2, 2, 1, 0, {}));
+slotA.push(new Minion(3, 1, 1, 0, {}));
+slotA.push(new Minion(4, 1, 1, 0, {}));
+slotA.push(new Minion(5, 5, 4, 0, { taunt: true }));
+slotB.push(api.newMinionById(612, false));
+
 
 console.log(slotA, slotB);
 var res = { a: 0, b: 0, tie: 0 };
-var n = 1;
+var n = 10000;
 for (var i = 0; i < n; i ++) {
    var r = G.sandbox(slotA, slotB);
    if (r[0].length > 0 && r[1].length > 0) res.tie ++;
    else if (r[0].length > 0) res.a ++;
    else if (r[1].length > 0) res.b ++;
    else res.tie ++;
-   console.log(r);
 }
-console.log(res, T);
+console.log(res, 'last battle trace:', T.steps);
