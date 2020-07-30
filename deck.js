@@ -241,7 +241,7 @@ var G = {
          var firstM = G.event.slots.first[cur];
          var available = 7 - slot.filter(function (x) { return x.hp > 0 && !x.flags.dead; }).length;
          var n = available < queue.length?available:queue.length;
-         if (index < firstM) firstM += n;
+         if (index < firstM) G.event.slots.first[cur] += n;
          slot.splice(index, 0, ...queue.slice(0, n));
          return n;
       },
@@ -398,7 +398,7 @@ function Version20200728 () {
       new Minion(10, 1, 1, 3, {}, 'murloc scout'),
       new Minion(11, 1, 1, 0, {}, 'plant'),
       new Minion(12, 1, 1, 1, {}, 'rat'),
-      new Minion(13, 8, 9, 2, {}, 'robosaur'),
+      new Minion(13, 8, 8, 2, {}, 'robosaur'),
       new Minion(14, 1, 1, 6, {}, 'sky pirate'),
       new Minion(15, 1, 1, 1, {}, 'spider'),
       new Minion(16, 1, 1, 1, {}, 'tabbycat'),
@@ -620,19 +620,23 @@ function Version20200728 () {
          }
       },
       getLeftMinion: function (m, slot) {
+         if (slot.length <= 1) return null;
          var cur = G.event.slots.minions[0]===slot?0:1;
          var first = G.event.slots.first[cur] || 0;
-         var index = slot.indexOf(m);
-         if (index === first) return null;
+         var mi = slot.indexOf(m);
+         var index = mi;
+         if (mi === first) return null;
          while (true) {
             index --;
             if (index < 0) index += slot.length;
-            if (index === first) return null;
             var mf = slot[index];
+            if (index === mi) return null;
             if (mf.hp > 0) return mf;
+            if (index === first) return null;
          }
       },
       getRightMinion: function (m, slot) {
+         if (slot.length <= 1) return null;
          var cur = G.event.slots.minions[0]===slot?0:1;
          var first = G.event.slots.first[cur] || 0;
          var index = slot.indexOf(m);
@@ -1057,9 +1061,9 @@ function Version20200728 () {
          if (m.id === 302 && m.flags.reborn) {
             var times = 1 + m312, i = 0, queue = [];
             for (i = 0; i < times; i++) {
-               var m = api.newMinionById(302);
-               m.flags.reborn = false;
-               queue.push(m);
+               var reborn = api.newMinionById(302, m.flags.tri);
+               reborn.flags.reborn = false;
+               queue.push(reborn);
             }
             G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
          }
@@ -1255,7 +1259,7 @@ function Version20200728 () {
                helper.summonPirateBuff(template, slot.f, buff);
                for (var i = 0; i < m602; i++) {
                   for (var j = -1; j < m312; j ++) {
-                     queue.push(template);
+                     queue.push(template.clone());
                   }
                   // use offset:
                   // 1     instead of      1
@@ -2036,6 +2040,7 @@ slotB.push(new Minion(9, 2, 2, 3, {}));
 slotB.push(api.newMinionById(209, false));
 */
 
+/*
 function last(slot) { return slot[slot.length-1]; }
 slotA.push(api.newMinionById(321, false));
 last(slotA).hp += 1; last(slotA).atk += 1;
@@ -2054,6 +2059,30 @@ slotB.push(new Minion(-16, 3, 2, 2, { shield: true }));
 slotB.push(new Minion(-17, 3, 3, 2, {}));
 slotB.push(new Minion(-18, 2, 1, 3, {}));
 slotB.push(new Minion(-19, 2, 7, 3, {}));
+*/
+
+function last(slot) { return slot[slot.length-1]; }
+slotA.push(api.newMinionById(306, false));
+last(slotA).hp = 2; last(slotA).atk = 13;
+slotA.push(new Minion(-11, 22, 10, 2, {}));
+last(slotA).flags.deathrattle = [api.newMinionById(316, false), api.newMinionById(316, false)];
+slotA.push(new Minion(-12, 17, 11, 2, {}));
+slotA.push(new Minion(-13, 3, 3, 2, {}));
+slotA.push(new Minion(-14, 30, 20, 2, {}));
+slotA.push(new Minion(-15, 2, 1, 3, {}));
+slotA.push(new Minion(-12, 10, 6, 2, {}));
+
+slotB.push(api.newMinionById(201, false));
+last(slotB).hp = 4; last(slotB).atk = 4;
+slotB.push(api.newMinionById(112, false));
+slotB.push(api.newMinionById(201, false));
+slotB.push(api.newMinionById(411, false));
+last(slotB).hp = 7; last(slotB).atk = 2;
+slotB.push(api.newMinionById(411, false));
+last(slotB).hp = 6; last(slotB).atk = 1;
+slotB.push(api.newMinionById(312, false));
+last(slotB).hp = 4; last(slotB).atk = 4;
+slotB.push(api.newMinionById(302, false));
 
 console.log(slotA, slotB);
 var res = { a: 0, b: 0, tie: 0 };
