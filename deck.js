@@ -93,7 +93,7 @@ var G = {
                if (firstM[cur] > 0) firstM[cur] --;
                friends.shift();
             }
-            if (md.hp <= 0) {
+            if (md.hp <= 0 || md.flags.dead) {
                var mdcur = enemies.indexOf(md);
                enemies.splice(mdcur, 1);
                if (mdcur < firstM[ecur]) {
@@ -133,6 +133,9 @@ var G = {
          }
          if (slot2.length > 0) {
             over = over || slot2.map(function (x) {
+               // XXX: there is a bug that x is undefined;
+               //      need to investigate where insert undefined
+               if (!x) return true;
                return x.atk === 0;
             }).reduce(function (x, y) {
                return x && y;
@@ -640,11 +643,14 @@ function Version20200728 () {
          var cur = G.event.slots.minions[0]===slot?0:1;
          var first = G.event.slots.first[cur] || 0;
          var index = slot.indexOf(m);
+         var visited = [];
          while (true) {
             index = (index + 1) % slot.length;
             if (index === first) return null;
+            if (visited.indexOf(index) >= 0) return null;
             var mf = slot[index];
             if (mf.hp > 0) return mf;
+            visited.push(index);
          }
       }
    };
@@ -711,7 +717,7 @@ function Version20200728 () {
                if (!md) return;
                T.track([m.clone(), md.clone(), damage]); // debug
                virtual.attack(md);
-               if (md.hp <= 0) {
+               if (md.hp <= 0 || md.flags.dead) {
                   md.flags.dead = true;
                   G.event.delMinion(md, { attacker: m, defenser: md });
                }
@@ -762,6 +768,7 @@ function Version20200728 () {
          });
          if (times > 0) {
             slot.f.forEach(function (x) {
+               if (x.flags.dead) return;
                x.hp += times;
                x.atk += times;
             });
@@ -777,14 +784,16 @@ function Version20200728 () {
             if (x.flags.deathrattle && x.flags.deathrattle.length > 0) return true;
             return false;
          });
-         var target = randomPick(available);
-         var subenv = { attacker: slot.e[0], defense: target };
-         G.event.triggerDead(target, subenv, true);
+         if (available.length > 0) {
+            var target = randomPick(available);
+            var subenv = { attacker: slot.e[0], defense: target };
+            G.event.triggerDead(target, subenv, true);
+         }
       }
 
       // x 219 waxrider togwaggle
       if (m.type === 5) {
-         if (env.defenser.hp <= 0) {
+         if (env.defenser.hp <= 0 || env.defenser.flags.dead) {
             var m219s = slot.f.filter(function (x) {
                return x.id === 219;
             });
@@ -877,7 +886,7 @@ function Version20200728 () {
                var denv = { attacker: virtual, defenser: md };
                T.track([cannon.clone(), md.clone(), virtual.atk]); // debug
                virtual.attack(md);
-               if (md.hp <= 0 && env.defenser !== md) {
+               if ((md.hp <= 0 || md.flags.dead) && env.defenser !== md) {
                   G.event.delMinion(md, denv);
                }
             });
@@ -892,15 +901,17 @@ function Version20200728 () {
       // x 323 yo-ho-ogre and should be real attack instead of merely damage
       if (m.id === 323 && env.attacker.id > 0) {
          var md = G.event.getDefenser(m, slot.e);
-         var denv = { attacker: m, defenser: md };
-         T.track([m.clone(), md.clone()]); // debug
-         m.attack(md);
-         if (md.hp <= 0 && env.attacker !== md) {
-            G.event.delMinion(md, denv);
+         if (md) {
+            var denv = { attacker: m, defenser: md };
+            T.track([m.clone(), md.clone()]); // debug
+            m.attack(md);
+            if ((md.hp <= 0 || md.flags.dead) && env.attacker !== md) {
+               G.event.delMinion(md, denv);
+            }
          }
       }
    };
-   G.event.triggerOutShield = function (m, env) {
+   G.event.triggerOutOfShield = function (m, env) {
       // x 402 bolvar, fireblood
       // x 406 drakonid enforcer
       var slot = G.event.getFriendEnemySlot(m, env);
@@ -930,6 +941,16 @@ function Version20200728 () {
       var slot = G.event.getFriendEnemySlot(m, env);
       var m312 = helper.countM312(slot.f);
 
+      // if m.hp <= 0, addMinion will summon one more
+      // here to correct the number
+      // e.g. 7 minions meanwhile 310/415/605 damaged and die; no summon
+      var max = 7 - slot.f.filter(function (x) {
+         if (x.hp > 0) return true;
+         if (x.flags.dead) return false;
+         if (x === m) return true;
+         return false;
+      });
+
       // x 310 imp gang boss
       if (m.id === 310) {
          var buff = {};
@@ -941,6 +962,7 @@ function Version20200728 () {
             helper.summonDemonBuff(summon, slot.f, buff);
             queue.push(summon);
          }
+         if (queue.length > max) queue = queue.slice(0, max);
          G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
       }
 
@@ -953,6 +975,7 @@ function Version20200728 () {
             var summon = template.clone();
             queue.push(summon);
          }
+         if (queue.length > max) queue = queue.slice(0, max);
          n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
          helper.shieldM306(slot.f, n);
       }
@@ -978,6 +1001,7 @@ function Version20200728 () {
             helper.summonDemonBuff(summon, slot.f, buff);
             helper.summonPirateBuff(summon, slot.f, buff);
          }
+         if (queue.length > max) queue = queue.slice(0, max);
          n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
          var added = queue.slice(0, n);
          var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; });
@@ -1113,7 +1137,7 @@ function Version20200728 () {
                   var denv = { attacker: virtual, defenser: md };
                   T.track([m.clone(), md.clone(), virtual.atk]); // debug
                   virtual.attack(md);
-                  if (md.hp <= 0 && env.defenser !== md && env.attacker !== md) {
+                  if ((md.hp <= 0 || md.flags.dead) && env.defenser !== md && env.attacker !== md) {
                      G.event.delMinion(md, denv);
                   }
                });
@@ -1141,7 +1165,7 @@ function Version20200728 () {
                if (mf.type !== 6) return; // pirate
                mf.atk -= v;
                mf.hp -= v;
-               if (mf.hp < 0) mf.hp = 1;
+               if (mf.hp <= 0) mf.hp = 1;
             });
          }
 
@@ -1163,7 +1187,7 @@ function Version20200728 () {
                if (mf.type !== 4) return; // demon
                mf.atk -= v;
                mf.hp -= v;
-               if (mf.hp < 0) mf.hp = 1;
+               if (mf.hp <= 0) mf.hp = 1;
             });
          }
       }
@@ -1272,12 +1296,12 @@ function Version20200728 () {
                      var denv = { attacker: mf, defenser: md };
                      T.track([mf.clone(), md.clone()]); // debug
                      mf.attack(md);
-                     if (mf.hp <= 0) {
+                     if (mf.hp <= 0 || mf.flags.dead) {
                         mf.flags.dead = true;
                         offset --;
                         G.event.delMinion(mf, denv);
                      }
-                     if (md.hp <= 0 && env.defenser !== md && env.attacker !== md) {
+                     if ((md.hp <= 0 || mf.flags.dead) && env.defenser !== md && env.attacker !== md) {
                         md.flags.dead = true;
                         G.event.delMinion(md, denv);
                      }
@@ -1339,7 +1363,7 @@ function Version20200728 () {
                      } else {
                         target.hp -= 4;
                         G.event.triggerDamaged(target, subenv);
-                        if (target.hp <= 0) {
+                        if (target.hp <= 0 || target.flags.dead) {
                            G.event.triggerDead(target, subenv);
                            G.event.delMinion(target, subenv);
                         }
@@ -1395,7 +1419,7 @@ function Version20200728 () {
                   var death = [];
                   G.event.orderMinions(slot.f).forEach(function (mf) {
                      if (mf === m) return;
-                     if (mf.hp <= 0) return;
+                     if (mf.hp <= 0 || mf.flags.dead) return;
                      senv2.defenser = mf;
                      if (m.flags.shield) {
                         mf.flags.shield = false;
@@ -1403,7 +1427,7 @@ function Version20200728 () {
                      } else {
                         mf.hp -= 1;
                         G.event.triggerDamaged(mf, senv2);
-                        if (mf.hp <= 0) {
+                        if (mf.hp <= 0 || mf.flags.dead) {
                            death.push(mf);
                         }
                      }
@@ -1415,7 +1439,7 @@ function Version20200728 () {
                   });
                   death = [];
                   G.event.orderMinions(slot.e).forEach(function (me) {
-                     if (me.hp <= 0) return;
+                     if (me.hp <= 0 || me.flags.dead) return;
                      senv1.defenser = me;
                      if (me.flags.shield) {
                         me.flags.shield = false;
@@ -1423,7 +1447,7 @@ function Version20200728 () {
                      } else {
                         me.hp -= 1;
                         G.event.triggerDamaged(me, senv1);
-                        if (me.hp <= 0) {
+                        if (me.hp <= 0 || me.flags.dead) {
                            death.push(me);
                         }
                      }
@@ -1646,11 +1670,11 @@ function Version20200728 () {
                var n = m602 * 3;
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var buff = {};
-                  var sid = randomPick(constants.all);
+                  var sid = randomPick(constants.pirate);
                   var summon = api.newMinionById(sid, true);
                   helper.summonPirateBuff(summon, slot.f, buff);
                   for (var j = m312 + 1; j > 0 && queue.length <= 7; j--) {
-                     queue.push(helper.clone());
+                     queue.push(summon.clone());
                   }
                }
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
@@ -1687,7 +1711,7 @@ function Version20200728 () {
                // 1 2 3 4 5 6
                //     x
                // - -   - - -
-               if (md.hp <= 0 && ei !== efirst) {
+               if ((md.hp <= 0 || md.flags.dead) && ei !== efirst) {
                   ei = (ei + 1) % slot.e.length;
                   md = slot.e[ei];
                   if (attacked.indexOf(md) >= 0) break;
@@ -1700,7 +1724,7 @@ function Version20200728 () {
             var env = { attacker: virtual, defenser: md };
             T.track([m.clone(), md.clone(), virtual.atk]); // debug
             virtual.attack(md);
-            if (md.hp <= 0) {
+            if (md.hp <= 0 || md.flags.dead) {
                G.event.delMinion(md, env);
             }
          });
@@ -1718,7 +1742,7 @@ function Version20200728 () {
          helper.summonBeastBuff(template, slot.f, buff);
          queue.push(template.clone());
          for (var i = 0; i < m312; i++) {
-            var copy = tempalte.clone();
+            var copy = template.clone();
             helper.summonBeastBuff(copy, slot.f, buff);
             queue.push(copy);
          }
@@ -1758,10 +1782,12 @@ function Version20200728 () {
          if (m.flags.atkT < count) {
             m.flags.atkT ++;
             var md = G.event.getDefenser(m, slot.e);
-            T.track([m.clone(), md.clone()]); // debug
-            m.attack(md);
-            if (md.hp <= 0 && env.defenser !== md) {
-               G.event.delMinion(md, env);
+            if (md) {
+               T.track([m.clone(), md.clone()]); // debug
+               m.attack(md);
+               if ((md.hp <= 0 || md.flags.dead) && env.defenser !== md) {
+                  G.event.delMinion(md, env);
+               }
             }
          } else {
             m.flags.atkT = 1;
@@ -1773,10 +1799,12 @@ function Version20200728 () {
          if (m.flags.atkT < count) {
             m.flags.atkT ++;
             var md = G.event.getDefenser(m, slot.e);
-            T.track([m.clone(), md.clone()]); // debug
-            m.attack(md);
-            if (md.hp <= 0 && env.defenser !== md) {
-               G.event.delMinion(md, env);
+            if (md) {
+               T.track([m.clone(), md.clone()]); // debug
+               m.attack(md);
+               if ((md.hp <= 0 || md.flags.dead) && env.defenser !== md) {
+                  G.event.delMinion(md, env);
+               }
             }
          } else {
             m.flags.atkT = 1;
@@ -2061,17 +2089,17 @@ slotB.push(new Minion(-18, 2, 1, 3, {}));
 slotB.push(new Minion(-19, 2, 7, 3, {}));
 */
 
+/*
 function last(slot) { return slot[slot.length-1]; }
 slotA.push(api.newMinionById(306, false));
 last(slotA).hp = 2; last(slotA).atk = 13;
 slotA.push(new Minion(-11, 22, 10, 2, {}));
-last(slotA).flags.deathrattle = [api.newMinionById(316, false), api.newMinionById(316, false)];
+last(slotA).flags.deathrattle = [api.newMinionById(316, false)];
 slotA.push(new Minion(-12, 17, 11, 2, {}));
 slotA.push(new Minion(-13, 3, 3, 2, {}));
 slotA.push(new Minion(-14, 30, 20, 2, {}));
 slotA.push(new Minion(-15, 2, 1, 3, {}));
 slotA.push(new Minion(-12, 10, 6, 2, {}));
-
 slotB.push(api.newMinionById(201, false));
 last(slotB).hp = 4; last(slotB).atk = 4;
 slotB.push(api.newMinionById(112, false));
@@ -2083,6 +2111,43 @@ last(slotB).hp = 6; last(slotB).atk = 1;
 slotB.push(api.newMinionById(312, false));
 last(slotB).hp = 4; last(slotB).atk = 4;
 slotB.push(api.newMinionById(302, false));
+*/
+
+/*
+function last(slot) { return slot[slot.length-1]; }
+slotA.push(api.newMinionById(612, false));
+slotA.push(api.newMinionById(411, false));
+last(slotA).hp = 7; last(slotA).atk = 2;
+slotA.push(new Minion(-12, 2, 4, 0, {}));
+slotA.push(new Minion(614, 12, 6, 99, { shield: true, windfury: true }));
+slotA.push(api.newMinionById(611, false));
+slotA.push(api.newMinionById(312, true));
+last(slotA).hp = 7; last(slotA).atk = 7;
+slotB.push(api.newMinionById(306, false));
+last(slotB).hp = 6; last(slotB).atk = 5;
+slotB.push(api.newMinionById(306, false));
+last(slotB).hp = 8; last(slotB).atk = 5;
+slotB.push(api.newMinionById(302, false));
+last(slotB).hp = 2; last(slotB).atk = 3;
+slotB.push(api.newMinionById(302, false));
+slotB.push(api.newMinionById(406, false));
+slotB.push(api.newMinionById(415, false));
+last(slotB).hp = 14; last(slotB).atk = 4; last(slotB).flags.taunt = true; last(slotB).flags.shield = true;
+slotB.push(new Minion(-15, 8, 20, 3, {}));
+*/
+
+// {a: 4511, b: 4258, tie: 1231}
+// slotA.push(api.newMinionById(604, false));
+// slotB.push(api.newMinionById(605, false));
+
+// {a: 9362, b: 350, tie: 288}
+// slotA.push(api.newMinionById(611, false));
+// slotB.push(api.newMinionById(605, false));
+
+// {a: 1012, b: 8151, tie: 837}
+// slotA.push(api.newMinionById(604, false));
+// slotB.push(api.newMinionById(611, false));
+
 
 console.log(slotA, slotB);
 var res = { a: 0, b: 0, tie: 0 };
