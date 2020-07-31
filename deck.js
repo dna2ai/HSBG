@@ -571,9 +571,9 @@ function Version20200728 () {
                }
             }
          });
-         slot.f.pop();
-         slot.f.pop();
-         slot.f.pop();
+         slot.f.splice(slot.f.indexOf(virtual), 1);
+         slot.f.splice(slot.f.indexOf(barrier), 1);
+         slot.f.splice(slot.f.indexOf(barrier), 1);
       });
    };
 
@@ -738,9 +738,9 @@ function Version20200728 () {
                   G.event.delMinion(md, denv);
                }
             });
-            slot.f.pop();
-            slot.f.pop();
-            slot.f.pop();
+            slot.f.splice(slot.f.indexOf(virtual), 1);
+            slot.f.splice(slot.f.indexOf(barrier), 1);
+            slot.f.splice(slot.f.indexOf(barrier), 1);
          });
       }
    };
@@ -989,9 +989,9 @@ function Version20200728 () {
                      G.event.delMinion(md, denv);
                   }
                });
-               slot.f.pop();
-               slot.f.pop();
-               slot.f.pop();
+               slot.f.splice(slot.f.indexOf(virtual), 1);
+               slot.f.splice(slot.f.indexOf(barrier), 1);
+               slot.f.splice(slot.f.indexOf(barrier), 1);
             }
          }
 
@@ -1593,9 +1593,9 @@ function Version20200728 () {
                G.event.delMinion(md, env);
             }
          });
-         slot.f.pop();
-         slot.f.pop();
-         slot.f.pop();
+         slot.f.splice(slot.f.indexOf(virtual), 1);
+         slot.f.splice(slot.f.indexOf(barrier), 1);
+         slot.f.splice(slot.f.indexOf(barrier), 1);
       }
 
       // x 506 ironhide direhorn
@@ -1627,7 +1627,7 @@ function Version20200728 () {
       }
 
       // x 515 seabreaker goliath
-      if (m.id === 512 && env.overkill) {
+      if (m.id === 515 && env.overkill) {
          slot.f.forEach(function (mf) {
             if (mf === m) return;
             if (mf.type !== 6 && mf.type !== 99) return;
