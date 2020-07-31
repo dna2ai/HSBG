@@ -1,5 +1,9 @@
 <html>
    <body>
+      <div>
+         <div><textarea id="minions" rows=10 style="width:100%;"></textarea></div>
+         <button id="fight" >Fight</button>
+      </div>
       <div id="result" style="width: 100%; height: 100%"></div>
       <style>
          table td { border-top: 1px solid black; }
@@ -7,136 +11,215 @@
       <script type="text/javascript" src="pool-20200731.js"></script>
       <script type="text/javascript" src="deck.js"></script>
       <script>
-         var result = document.querySelector('#result');
-         result.innerHTML = 'Calculating ...';
-         var slotA = [], slotB = [];
+         function parseMinonText() {
+            var text = document.querySelector('#minions').value;
+            if (!text) return null;
+            var slotA = [], slotB = [], slot = slotA;
+            text.split('\n').forEach(function (line) {
+               line = line.trim();
+               if (!line) return;
+               if (line.startsWith('#')) return;
+               if (line === '-') {
+                  slot = slotB;
+                  return;
+               }
+               var args = line.split('/');
+               // name|id/atk/hp/attr(3SPRWT, 3=tri, S=divineShield, P: poisonous, R: reborn, W: windfury, T: taunt)/additional_deathrattle(name,name*3)/...
+               if (args.length < 3) return;
+               var nameOrId = args[0];
+               var m = getTemplate(nameOrId);
+               if (!m) return;
+               m = m.clone();
+               if (args[3] && args[3].indexOf('3') >= 0) {
+                  m = api.newMinionById(m.id, true);
+               }
+               m = parseValue(m, args);
+               args.slice(4).forEach(function (nameOrId) {
+                  if (!nameOrId) return;
+                  var d = getTemplate(nameOrId);
+                  if (!d) return;
+                  var tri = false;
+                  if (nameOrId.endsWith('*3')) tri = true;
+                  if (tri) d = api.newMinionById(d.id, tri);
+                  if (!m.flags.deathrattle) m.flags.deathrattle = [];
+                  m.flags.deathrattle.push(d);
+               });
+               if (!m) return;
+               slot.push(m);
 
-         function last(slot) { return slot[slot.length-1]; }
-         slotA.push(api.newMinionById(612, false));
-         slotA.push(api.newMinionById(411, false));
-         last(slotA).hp = 7; last(slotA).atk = 2;
-         slotA.push(new Minion(-12, 2, 4, 0, {}));
-         slotA.push(new Minion(614, 12, 6, 99, { shield: true, windfury: true }));
-         slotA.push(api.newMinionById(611, false));
-         slotA.push(api.newMinionById(312, true));
-         last(slotA).hp = 7; last(slotA).atk = 7;
-         slotB.push(api.newMinionById(306, false));
-         last(slotB).hp = 6; last(slotB).atk = 5;
-         slotB.push(api.newMinionById(306, false));
-         last(slotB).hp = 8; last(slotB).atk = 5;
-         slotB.push(api.newMinionById(302, false));
-         last(slotB).hp = 2; last(slotB).atk = 3;
-         slotB.push(api.newMinionById(302, false));
-         slotB.push(api.newMinionById(406, false));
-         slotB.push(new Minion(-15, 8, 20, 3, {}));
-         slotB.push(api.newMinionById(415, false));
-         last(slotB).hp = 14; last(slotB).atk = 4; last(slotB).flags.taunt = true; last(slotB).flags.shield = true;
+               function getTemplate(nameOrId) {
+                  var m = G.pool.filter(function (x) { return x.name === nameOrId; })[0];
+                  if (!m) {
+                     var id = parseInt(nameOrId, 10);
+                     m = G.pool.filter(function (x) { return x.id === id; })[0];
+                     if (!m) {
+                        m = new Minion(id, 0, 0, 0, {});
+                     }
+                  }
+                  return m;
+               }
 
-         result.innerHTML = '';
-         var table = document.createElement('table');
-         var tbody = document.createElement('tbody');
-         for (var i = 0, n = Math.max(slotA.length, slotB.length); i < n; i++) {
-            var x = slotA[i];
-            var y = slotB[i];
-            var tr = document.createElement('tr');
-            var td = document.createElement('td');
-            if (x) {
-               td.appendChild(document.createTextNode(x.toString()));
-            } else {
-               td.innerHTML = '-';
-            }
-            tr.appendChild(td);
-            td = document.createElement('td');
-            if (y) {
-               td.appendChild(document.createTextNode(y.toString()));
-            } else {
-               td.innerHTML = '-';
-            }
-            tbody.appendChild(tr);
-            tr.appendChild(td);
+               function parseValue(m, args) {
+                  m.atk = parseInt(args[1], 10);
+                  m.hp = parseInt(args[2], 10);
+                  if (m.hp <= 0) return null;
+                  var attr = args[3]?args[3].split(''):null;
+                  if (attr) attr.forEach(function (ch) {
+                     switch (ch) {
+                        case 'S': m.flags.shield = true; break;
+                        case 'P': m.flags.poison = true; break;
+                        case 'R': m.flags.reborn = true; break;
+                        case 'W': m.flags.windfury = true; break;
+                        case 'T': m.flags.taunt = true; break;
+                     }
+                  });
+                  return m;
+               }
+            });
+            return { A: slotA, B: slotB };
          }
-         table.appendChild(tbody);
 
-         // to make sure when meet bugs
-         // we can see what happens
-         // comment out for faster performance
-         T.debug = true;
-         var res = { a: 0, b: 0, tie: 0, ad: 0, bd: 0 };
-         var n = 10000;
-         for (var i = 1; i < n; i ++) {
-            var r = G.sandbox(slotA, slotB);
-            if (r[0].length > 0 && r[1].length > 0) res.tie ++;
-            else if (r[0].length > 0) {
-               res.a ++;
-               res.ad += r[0].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
-            } else if (r[1].length > 0) {
-               res.b ++;
-               res.bd += r[1].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
-            }
-            else res.tie ++;
-         }
-
-         var lastR = G.sandbox(slotA, slotB);
-         if (lastR[0].length > 0 && lastR[1].length > 0) res.tie ++;
-         else if (lastR[0].length > 0) res.a ++;
-         else if (lastR[1].length > 0) res.b ++;
-         else res.tie ++;
-
-         var statTr, statTd;
-         statTr = document.createElement('tr');
-         statTd = document.createElement('td');
-         statTd.colSpan = '2';
-         statTd.innerHTML = 'Battle Statistics<br/>';
-         statTd.appendChild(document.createTextNode(
-            'SlotA win: ' + (Math.floor(res.a / n * 10000) / 100) + '% (' + (Math.floor(res.ad / res.a * 100) / 100) +'), ' +
-            'SlotB win: ' + (Math.floor(res.b / n * 10000) / 100) + '% (' + (Math.floor(res.bd / res.b * 100) / 100) +'), ' +
-            'Tie: ' + (Math.floor(res.tie / n * 10000) / 100) + '%'
-         ));
-         statTr.appendChild(statTd);
-         tbody.appendChild(statTr);
-         result.appendChild(table);
-         result.appendChild(document.createElement('br'));
-
-         table = document.createElement('table');
-         table.innerHTML = (
-            '<thead><tr><th>Attacker</th><th>Defenser</th>' +
-            '<th>1</th><th>2</th><th>Memo</th></tr></thead>'
-         );
-         tbody = document.createElement('tbody');
-         T.steps.forEach(function (step) {
-            var tr, td;
-            tr = document.createElement('tr');
-            td = document.createElement('td');
-            td.appendChild(document.createTextNode(step.a.toShortString()));
-            tr.appendChild(td);
-            td = document.createElement('td');
-            td.appendChild(document.createTextNode(step.d.toShortString()));
-            tr.appendChild(td);
-            td = document.createElement('td');
-            td.appendChild(document.createTextNode(step.f.map(function (m) { return m.toShortString(); }).join(', ')));
-            tr.appendChild(td);
-            td = document.createElement('td');
-            td.appendChild(document.createTextNode(step.e.map(function (m) { return m.toShortString(); }).join(', ')));
-            tr.appendChild(td);
-            td = document.createElement('td'); td.innerHTML = '-'; tr.appendChild(td);
-            tbody.appendChild(tr);
+         document.querySelector('#fight').addEventListener('click', function () {
+            var slot = parseMinonText();
+            if (!slot) return;
+            goFight(slot.A, slot.B);
          });
-         {
-            var tr, td;
-            tr = document.createElement('tr');
-            td = document.createElement('td');
-            td.colSpan = 5;
-            td.appendChild(document.createTextNode(
-               'Final: ' + 
-               (lastR[0].map(function (m) { return m.toShortString(); }).join(', ') || '-') +
-               ' / ' +
-               (lastR[1].map(function (m) { return m.toShortString(); }).join(', ') || '-')
+
+         function goFight(slotA, slotB) {
+            var result = document.querySelector('#result');
+            result.innerHTML = '';
+            var table = document.createElement('table');
+            var tbody = document.createElement('tbody');
+            for (var i = 0, n = Math.max(slotA.length, slotB.length); i < n; i++) {
+               var x = slotA[i];
+               var y = slotB[i];
+               var tr = document.createElement('tr');
+               var td = document.createElement('td');
+               if (x) {
+                  td.appendChild(document.createTextNode(x.toString()));
+               } else {
+                  td.innerHTML = '-';
+               }
+               tr.appendChild(td);
+               td = document.createElement('td');
+               if (y) {
+                  td.appendChild(document.createTextNode(y.toString()));
+               } else {
+                  td.innerHTML = '-';
+               }
+               tbody.appendChild(tr);
+               tr.appendChild(td);
+            }
+            table.appendChild(tbody);
+
+            // to make sure when meet bugs
+            // we can see what happens
+            // comment out for faster performance
+            T.debug = true;
+            var res = { a: 0, b: 0, tie: 0, ad: 0, bd: 0 };
+            var n = 10000;
+            for (var i = 1; i < n; i ++) {
+               var r = G.sandbox(slotA, slotB);
+               if (r[0].length > 0 && r[1].length > 0) res.tie ++;
+               else if (r[0].length > 0) {
+                  res.a ++;
+                  res.ad += r[0].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
+               } else if (r[1].length > 0) {
+                  res.b ++;
+                  res.bd += r[1].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
+               }
+               else res.tie ++;
+            }
+
+            var lastR = G.sandbox(slotA, slotB);
+            if (lastR[0].length > 0 && lastR[1].length > 0) res.tie ++;
+            else if (lastR[0].length > 0) res.a ++;
+            else if (lastR[1].length > 0) res.b ++;
+            else res.tie ++;
+
+            var statTr, statTd;
+            statTr = document.createElement('tr');
+            statTd = document.createElement('td');
+            statTd.colSpan = '2';
+            statTd.innerHTML = 'Battle Statistics<br/>';
+            statTd.appendChild(document.createTextNode(
+               'SlotA win: ' + (Math.floor(res.a / n * 10000) / 100) + '% (' + (Math.floor(res.ad / res.a * 100) / 100) +'), ' +
+               'SlotB win: ' + (Math.floor(res.b / n * 10000) / 100) + '% (' + (Math.floor(res.bd / res.b * 100) / 100) +'), ' +
+               'Tie: ' + (Math.floor(res.tie / n * 10000) / 100) + '%'
             ));
-            tr.appendChild(td);
-            tbody.appendChild(tr);
+            statTr.appendChild(statTd);
+            tbody.appendChild(statTr);
+            result.appendChild(table);
+            result.appendChild(document.createElement('br'));
+
+            table = document.createElement('table');
+            table.innerHTML = (
+               '<thead><tr><th>Attacker</th><th>Defenser</th>' +
+               '<th>1</th><th>2</th><th>Memo</th></tr></thead>'
+            );
+            tbody = document.createElement('tbody');
+            T.steps.forEach(function (step) {
+               var tr, td;
+               tr = document.createElement('tr');
+               td = document.createElement('td');
+               td.appendChild(document.createTextNode(step.a.toShortString()));
+               tr.appendChild(td);
+               td = document.createElement('td');
+               td.appendChild(document.createTextNode(step.d.toShortString()));
+               tr.appendChild(td);
+               td = document.createElement('td');
+               td.appendChild(document.createTextNode(step.f.map(function (m) { return m.toShortString(); }).join(', ')));
+               tr.appendChild(td);
+               td = document.createElement('td');
+               td.appendChild(document.createTextNode(step.e.map(function (m) { return m.toShortString(); }).join(', ')));
+               tr.appendChild(td);
+               td = document.createElement('td'); td.innerHTML = '-'; tr.appendChild(td);
+               tbody.appendChild(tr);
+            });
+            {
+               var tr, td;
+               tr = document.createElement('tr');
+               td = document.createElement('td');
+               td.colSpan = 5;
+               td.appendChild(document.createTextNode(
+                  'Final: ' + 
+                  (lastR[0].map(function (m) { return m.toShortString(); }).join(', ') || '-') +
+                  ' / ' +
+                  (lastR[1].map(function (m) { return m.toShortString(); }).join(', ') || '-')
+               ));
+               tr.appendChild(td);
+               tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+            result.appendChild(table);
          }
-         table.appendChild(tbody);
-         result.appendChild(table);
+
+         function demo() {
+            var slotA = [], slotB = [];
+            function last(slot) { return slot[slot.length-1]; }
+            slotA.push(api.newMinionById(612, false));
+            slotA.push(api.newMinionById(411, false));
+            last(slotA).hp = 7; last(slotA).atk = 2;
+            slotA.push(new Minion(-12, 2, 4, 0, {}));
+            slotA.push(new Minion(614, 12, 6, 99, { shield: true, windfury: true }));
+            slotA.push(api.newMinionById(611, false));
+            slotA.push(api.newMinionById(312, true));
+            last(slotA).hp = 7; last(slotA).atk = 7;
+            slotB.push(api.newMinionById(306, false));
+            last(slotB).hp = 6; last(slotB).atk = 5;
+            slotB.push(api.newMinionById(306, false));
+            last(slotB).hp = 8; last(slotB).atk = 5;
+            slotB.push(api.newMinionById(302, false));
+            last(slotB).hp = 2; last(slotB).atk = 3;
+            slotB.push(api.newMinionById(302, false));
+            slotB.push(api.newMinionById(406, false));
+            slotB.push(new Minion(-15, 8, 20, 3, {}));
+            slotB.push(api.newMinionById(415, false));
+            last(slotB).hp = 14; last(slotB).atk = 4; last(slotB).flags.taunt = true; last(slotB).flags.shield = true;
+            goFight(slotA, slotB);
+         }
+
+         demo();
       </script>
    </body>
 </html>
