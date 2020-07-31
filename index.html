@@ -28,9 +28,9 @@
          last(slotB).hp = 2; last(slotB).atk = 3;
          slotB.push(api.newMinionById(302, false));
          slotB.push(api.newMinionById(406, false));
+         slotB.push(new Minion(-15, 8, 20, 3, {}));
          slotB.push(api.newMinionById(415, false));
          last(slotB).hp = 14; last(slotB).atk = 4; last(slotB).flags.taunt = true; last(slotB).flags.shield = true;
-         slotB.push(new Minion(-15, 8, 20, 3, {}));
 
          result.innerHTML = '';
          var table = document.createElement('table');
@@ -61,13 +61,18 @@
          // we can see what happens
          // comment out for faster performance
          T.debug = true;
-         var res = { a: 0, b: 0, tie: 0 };
+         var res = { a: 0, b: 0, tie: 0, ad: 0, bd: 0 };
          var n = 10000;
          for (var i = 1; i < n; i ++) {
             var r = G.sandbox(slotA, slotB);
             if (r[0].length > 0 && r[1].length > 0) res.tie ++;
-            else if (r[0].length > 0) res.a ++;
-            else if (r[1].length > 0) res.b ++;
+            else if (r[0].length > 0) {
+               res.a ++;
+               res.ad += r[0].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
+            } else if (r[1].length > 0) {
+               res.b ++;
+               res.bd += r[1].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
+            }
             else res.tie ++;
          }
 
@@ -83,8 +88,8 @@
          statTd.colSpan = '2';
          statTd.innerHTML = 'Battle Statistics<br/>';
          statTd.appendChild(document.createTextNode(
-            'SlotA win: ' + (Math.floor(res.a / n * 10000) / 100) + '%, ' +
-            'SlotB win: ' + (Math.floor(res.b / n * 10000) / 100) + '%, ' +
+            'SlotA win: ' + (Math.floor(res.a / n * 10000) / 100) + '% (' + (Math.floor(res.ad / res.a * 100) / 100) +'), ' +
+            'SlotB win: ' + (Math.floor(res.b / n * 10000) / 100) + '% (' + (Math.floor(res.bd / res.b * 100) / 100) +'), ' +
             'Tie: ' + (Math.floor(res.tie / n * 10000) / 100) + '%'
          ));
          statTr.appendChild(statTd);
