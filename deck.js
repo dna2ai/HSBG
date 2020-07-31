@@ -123,27 +123,26 @@ var G = {
          var slot1 = G.event.slots.minions[0];
          var slot2 = G.event.slots.minions[1];
          if (!slot1 || !slot2) return true;
-         var over = true;
+         var atkgt0 = 0;
+         if (slot1.length === 0 || slot2.length === 0) return true;
          if (slot1.length > 0) {
-            over = over && slot1.map(function (x) {
-               return x.atk === 0;
+            atkgt0 += slot1.map(function (x) {
+               return x.atk > 0?1:0;
             }).reduce(function (x, y) {
-               return x && y;
+               return x + y;
             });
          }
          if (slot2.length > 0) {
-            over = over || slot2.map(function (x) {
+            atkgt0 += slot1.map(function (x) {
                // XXX: there is a bug that x is undefined;
                //      need to investigate where insert undefined
                if (!x) return true;
-               return x.atk === 0;
+               return x.atk > 0?1:0;
             }).reduce(function (x, y) {
-               return x && y;
+               return x + y;
             });
-         } else {
-            over = true;
          }
-         return over;
+         return atkgt0 === 0;
       },
       getNextAttacker: function (slot) {
          var noatk = [];
@@ -185,7 +184,7 @@ var G = {
       },
       getRandomMinion: function (slot) {
          var minions = slot.filter(function (x) {
-            return x.hp > 0;
+            return x.hp > 0 && !x.flags.dead;
          });
          return randomPick(minions);
       },
@@ -1200,10 +1199,22 @@ function Version20200728 () {
                   var target = G.event.getRandomMinion(slot.e);
                   if (!target) break;
                   targets.push(target);
+                  target.hp -= 4;
                }
-               if (targets.length) {
-                  var firstM = G.event.slots.first[slot.ecur];
-                  G.event.orderMinions(targets, firstM).forEach(function (target) {
+               targets.forEach(function (target) {
+                  target.hp += 4;
+               });
+               if (targets.length > 0) {
+                  var efirst = G.event.slots.first[slot.ecur];
+                  var enemies = G.event.orderMinions(slot.e.slice(), efirst);
+                  targets.forEach(function (me) {
+                     me.__order = enemies.indexOf(me);
+                  });
+                  targets = targets.sort(function (x, y) {
+                     return x.__order - y.__order;
+                  });
+                  targets.forEach(function (target) {
+                     delete target.__order;
                      var subenv = { attacker: m, defenser: target };
                      T.track([m.clone(), target.clone()]); // debug
                      if (target.flags.shield) {
@@ -1214,7 +1225,9 @@ function Version20200728 () {
                         G.event.triggerDamaged(target, subenv);
                         if (target.hp <= 0 || target.flags.dead) {
                            G.event.triggerDead(target, subenv);
-                           G.event.delMinion(target, subenv);
+                           if (target !== env.attacker || target !== env.defenser) {
+                              G.event.delMinion(target, subenv);
+                           }
                         }
                      }
                   });
@@ -1369,9 +1382,12 @@ function Version20200728 () {
                var template = api.newMinionById(3); // (3 3) and tri(3 3)
                for (var i = 0; i < n; i++) queue.push(template.clone());
                var efirst = G.event.slots.first[slot.ecur];
-               G.event.addMinion(queue, slot.e, efirst);
+               n = G.event.addMinion(queue, slot.e, efirst);
                if (efirst === 0) {
-                  slot.e.push(slot.e.shift());
+                  while (n > 0) {
+                     slot.e.push(slot.e.shift());
+                     n --;
+                  }
                }
             } break;
             case 411: { // mechano-egg
@@ -1790,12 +1806,14 @@ Minion.prototype = {
       if (this.flags.poison) obj.attr.push('poisonous');
       if (this.flags.taunt) obj.attr.push('taunt');
       if (this.flags.windfury) obj.attr.push('windfury');
+      if (this.flags.reborn) obj.attr.push('reborn');
       return JSON.stringify(obj);
    },
    toShortString: function () {
       var id = this.id;
       var m = G.pool.filter(function (x) { return x.id === id; })[0];
       var name = m?m.name:'(unknown)';
+      if (this.flags.reborn) name = '*' + name;
       if (this.flags.taunt) name = '[' + name + ']';
       if (this.flags.shield) name = '<' + name + '>';
       if (this.flags.poison) name = 'x-' + name;

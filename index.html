@@ -9,8 +9,8 @@
       <script>
          var result = document.querySelector('#result');
          result.innerHTML = 'Calculating ...';
-
          var slotA = [], slotB = [];
+
          function last(slot) { return slot[slot.length-1]; }
          slotA.push(api.newMinionById(612, false));
          slotA.push(api.newMinionById(411, false));
@@ -31,7 +31,6 @@
          slotB.push(api.newMinionById(415, false));
          last(slotB).hp = 14; last(slotB).atk = 4; last(slotB).flags.taunt = true; last(slotB).flags.shield = true;
          slotB.push(new Minion(-15, 8, 20, 3, {}));
-
 
          result.innerHTML = '';
          var table = document.createElement('table');
@@ -58,6 +57,10 @@
          }
          table.appendChild(tbody);
 
+         // to make sure when meet bugs
+         // we can see what happens
+         // comment out for faster performance
+         T.debug = true;
          var res = { a: 0, b: 0, tie: 0 };
          var n = 10000;
          for (var i = 1; i < n; i ++) {
@@ -68,7 +71,6 @@
             else res.tie ++;
          }
 
-         T.debug = true;
          var lastR = G.sandbox(slotA, slotB);
          if (lastR[0].length > 0 && lastR[1].length > 0) res.tie ++;
          else if (lastR[0].length > 0) res.a ++;
