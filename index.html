@@ -1,8 +1,9 @@
 <html>
    <body>
       <div>
-         <div><textarea id="minions" rows=10 style="width:100%;"></textarea></div>
-         <button id="fight" >Fight</button>
+         <div><textarea id="minions" rows=10 style="width:100%;"
+            placeholder="name/atk/hp/3SPRWT/deathrattleName/name*3/..."></textarea></div>
+         <button id="fight" >Go Fight!</button>
       </div>
       <div id="result" style="width: 100%; height: 100%"></div>
       <style>
@@ -25,11 +26,13 @@
                }
                var args = line.split('/');
                // name|id/atk/hp/attr(3SPRWT, 3=tri, S=divineShield, P: poisonous, R: reborn, W: windfury, T: taunt)/additional_deathrattle(name,name*3)/...
-               if (args.length < 3) return;
                var nameOrId = args[0];
                var m = getTemplate(nameOrId);
                if (!m) return;
-               m = m.clone();
+               if (args.length < 3) {
+                  slot.push(m);
+                  return;
+               }
                if (args[3] && args[3].indexOf('3') >= 0) {
                   m = api.newMinionById(m.id, true);
                }
@@ -40,7 +43,7 @@
                   if (!d) return;
                   var tri = false;
                   if (nameOrId.endsWith('*3')) tri = true;
-                  if (tri) d = api.newMinionById(d.id, tri);
+                  d = api.newMinionById(d.id, tri);
                   if (!m.flags.deathrattle) m.flags.deathrattle = [];
                   m.flags.deathrattle.push(d);
                });
@@ -56,7 +59,7 @@
                         m = new Minion(id, 0, 0, 0, {});
                      }
                   }
-                  return m;
+                  return m.clone();
                }
 
                function parseValue(m, args) {

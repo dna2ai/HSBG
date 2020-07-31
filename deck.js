@@ -133,10 +133,10 @@ var G = {
             });
          }
          if (slot2.length > 0) {
-            atkgt0 += slot1.map(function (x) {
+            atkgt0 += slot2.map(function (x) {
                // XXX: there is a bug that x is undefined;
                //      need to investigate where insert undefined
-               if (!x) return true;
+               if (!x) return 0;
                return x.atk > 0?1:0;
             }).reduce(function (x, y) {
                return x + y;
@@ -591,7 +591,7 @@ function Version20200728 () {
 
       // x 413 ripsnarl captain
       // x 601 dread admiral eliza
-      if (m.type === 6) {
+      if (m.type === 6 || m.type === 99) {
          var times = 0;
          var m413s = slot.f.filter(function (x) {
             return x.id === 413;
@@ -852,8 +852,8 @@ function Version20200728 () {
          if (queue.length > max) queue = queue.slice(0, max);
          n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
          var added = queue.slice(0, n);
-         var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; });
-         var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; });
+         var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
+         var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
          helper.shieldM306(slot.f, mechn);
          helper.buffM107(slot.f, murlocn);
          helper.newBuffMinions(slot.f, added);
@@ -865,11 +865,10 @@ function Version20200728 () {
       var m312 = helper.countM312(slot.f);
 
       if (m.flags.deathrattle) {
-         var cur = G.event.slots.minions[0] === slot.f?0:1;
-         var firstM = G.event.slots.first[cur];
+         var mi = slot.f.indexOf(m);
          var n = m.flags.deathrattle.length;
          if (n > 0) {
-            slot.f.splice(firstM + 1, 0, ...m.flags.deathrattle);
+            slot.f.splice(mi + 1, 0, ...m.flags.deathrattle);
          }
       }
       processOne(m, env);
@@ -879,8 +878,7 @@ function Version20200728 () {
             deathrattle.hp = 0;
             deathrattle.flags.dead = true;
             processOne(deathrattle, env);
-            var index = slot.f.indexOf(deathrattle);
-            slot.f.splice(index, 1);
+            slot.f.splice(slot.f.indexOf(deathrattle), 1);
          });
       }
       if (!skipDeadBuff) {
@@ -939,6 +937,7 @@ function Version20200728 () {
             }
             G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
          }
+         // TODO: generic reborn; beast, murloc, mech buff ...
 
          // x 320 soul juggler
          if (m.type === 4) { // demon
@@ -1093,8 +1092,8 @@ function Version20200728 () {
                }
                var n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
                var added = queue.slice(0, n);
-               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; });
-               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; });
+               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
+               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
                helper.shieldM306(slot.f, mechn);
                helper.buffM107(slot.f, murlocn);
                helper.newBuffMinions(slot.f, added);
@@ -1360,8 +1359,8 @@ function Version20200728 () {
                }
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
                var added = queue.slice(0, n);
-               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; });
-               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; });
+               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
+               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
                helper.shieldM306(slot.f, mechn);
                helper.buffM107(slot.f, murlocn);
                helper.newBuffMinions(slot.f, added);
@@ -1457,8 +1456,8 @@ function Version20200728 () {
                }
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
                var added = queue.slice(0, n);
-               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; });
-               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; });
+               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
+               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
                helper.shieldM306(slot.f, mechn);
                helper.buffM107(slot.f, murlocn);
                helper.newBuffMinions(slot.f, added);
@@ -1498,8 +1497,8 @@ function Version20200728 () {
                }
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
                var added = queue.slice(0, n);
-               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; });
-               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; });
+               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
+               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
                helper.shieldM306(slot.f, mechn);
                helper.buffM107(slot.f, murlocn);
                helper.newBuffMinions(slot.f, added);
@@ -1544,8 +1543,8 @@ function Version20200728 () {
                }
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
                var added = queue.slice(0, n);
-               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; });
-               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; });
+               var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
+               var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
                helper.shieldM306(slot.f, mechn);
                helper.buffM107(slot.f, murlocn);
                helper.newBuffMinions(slot.f, added);
