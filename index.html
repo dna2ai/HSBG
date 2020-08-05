@@ -4,14 +4,53 @@
          <div><textarea id="minions" rows=10 style="width:100%;"
             placeholder="name/atk/hp/3SPRWT/deathrattleName/name*3/..."></textarea></div>
          <button id="fight" >Go Fight!</button>
+         <button id="lookupna" >N/A</button>
+         <button id="lookup1" >1</button>
+         <button id="lookup2" >2</button>
+         <button id="lookup3" >3</button>
+         <button id="lookup4" >4</button>
+         <button id="lookup5" >5</button>
+         <button id="lookup6" >6</button>
+         <button id="lookupother" >other</button>
+         <div id="lookup"></div>
       </div>
-      <div id="result" style="width: 100%; height: 100%"></div>
+      <div id="result" style="width: 100%; height: 100%; margin-top: 5px;"></div>
       <style>
          table td { border-top: 1px solid black; }
       </style>
       <script type="text/javascript" src="pool-20200731.js"></script>
       <script type="text/javascript" src="deck.js"></script>
       <script>
+         function lookup(evt) {
+            var ui = document.querySelector('#lookup');
+            ui.innerHTML = '';
+            var list = [];
+            switch(evt.target.getAttribute('id')) {
+               case 'lookupna': return;
+               case 'lookup1': list = G.pool.filter(function (x) { return ~~(x.id/100) === 1; }); break;
+               case 'lookup2': list = G.pool.filter(function (x) { return ~~(x.id/100) === 2; }); break;
+               case 'lookup3': list = G.pool.filter(function (x) { return ~~(x.id/100) === 3; }); break;
+               case 'lookup4': list = G.pool.filter(function (x) { return ~~(x.id/100) === 4; }); break;
+               case 'lookup5': list = G.pool.filter(function (x) { return ~~(x.id/100) === 5; }); break;
+               case 'lookup6': list = G.pool.filter(function (x) { return ~~(x.id/100) === 6; }); break;
+               case 'lookupother': list = G.pool.filter(function (x) { return ~~(x.id/100) < 1 && x.id < 50; }); break;
+            }
+            list.forEach(function (m) {
+               var text = m.toString();
+               var div = document.createElement('div');
+               div.appendChild(document.createTextNode(text));
+               ui.appendChild(div);
+            });
+         }
+         document.querySelector('#lookupna').addEventListener('click', lookup);
+         document.querySelector('#lookup1').addEventListener('click', lookup);
+         document.querySelector('#lookup2').addEventListener('click', lookup);
+         document.querySelector('#lookup3').addEventListener('click', lookup);
+         document.querySelector('#lookup4').addEventListener('click', lookup);
+         document.querySelector('#lookup5').addEventListener('click', lookup);
+         document.querySelector('#lookup6').addEventListener('click', lookup);
+         document.querySelector('#lookupother').addEventListener('click', lookup);
+
          function parseMinonText() {
             var text = document.querySelector('#minions').value;
             if (!text) return null;
