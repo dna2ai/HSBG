@@ -327,7 +327,7 @@ function Version20200728 () {
                case 215: // southsea captain
                   slot.forEach(function (m) {
                      if (m === source) return;
-                     if (m.type !== 6) return;
+                     if (m.type !== 6 && m.type !== 99) return;
                      var val = source.flags.tri?2:1;
                      m.atk += val;
                      m.hp += val;
@@ -336,7 +336,7 @@ function Version20200728 () {
                case 416: // siegebreaker
                   slot.forEach(function (m) {
                      if (m === source) return;
-                     if (m.type !== 4) return;
+                     if (m.type !== 4 && m.type !== 99) return;
                      var val = source.flags.tri?2:1;
                      m.atk += val;
                   });
@@ -344,7 +344,7 @@ function Version20200728 () {
                case 510: // mal\'ganis
                   slot.forEach(function (m) {
                      if (m === source) return;
-                     if (m.type !== 4) return;
+                     if (m.type !== 4 && m.type !== 99) return;
                      var val = source.flags.tri?4:2;
                      m.atk += val;
                      m.hp += val;
@@ -508,7 +508,7 @@ function Version20200728 () {
       // x 209 murloc warleader
       helper.countMurlocSummonBuff(slot, buff);
       slot.forEach(function (x) {
-         if (x.type !== 3) return; // murloc
+         if (x.type !== 3 && x.type !== 99) return; // murloc
          helper.summonMurlocBuff(x, slot, buff);
          if (x.id === 209) {
             var val = 2 * (x.flags.tri?2:1);
@@ -519,7 +519,7 @@ function Version20200728 () {
       // x 215 southsea captain
       helper.countPirateSummonBuff(slot, buff);
       slot.forEach(function (x) {
-         if (x.type !== 6) return; // pirate
+         if (x.type !== 6 && x.type !== 99) return; // pirate
          helper.summonPirateBuff(x, slot, buff);
          if (x.id === 215) {
             var val = x.flags.tri?2:1;
@@ -532,7 +532,7 @@ function Version20200728 () {
       // x 510 mal\'ganis
       helper.countDemonSummonBuff(slot, buff);
       slot.forEach(function (x) {
-         if (x.type !== 4) return; // demon
+         if (x.type !== 4 && x.type !== 99) return; // demon
          helper.summonDemonBuff(x, slot, buff);
          if (x.id === 416) {
             var val = x.flags.tri?2:1;
@@ -551,8 +551,8 @@ function Version20200728 () {
       var slot2 = G.event.slots.minions[1];
       var order = shuffle([{f: slot1, e: slot2}, {f: slot2, e: slot1}]);
       order.forEach(function (slot) {
-         var m109s = slot.f.filter(function (m) { return m.id === 109 });
-         var damage = slot.f.filter(function (m) { return m.type === 5; }).length;
+         var m109s = slot.f.filter(function (m) { return m.id === 109; });
+         var damage = slot.f.filter(function (m) { return m.type === 5 || m.type === 99; }).length;
          var barrier = new Minion(-99, 0, 1, 0, { dead: true });
          var virtual = new Minion(-99, damage, 0, 5, { immune: true, dead: true });
          slot.f.push(barrier);
@@ -640,7 +640,7 @@ function Version20200728 () {
       }
 
       // x 219 waxrider togwaggle
-      if (m.type === 5) {
+      if (m.type === 5 || m.type === 99) {
          if (env.defenser.hp <= 0 || env.defenser.flags.dead) {
             var m219s = slot.f.filter(function (x) {
                return x.id === 219;
@@ -889,7 +889,7 @@ function Version20200728 () {
 
       function deadBuff(m, env) {
          // x 113 scaveging hyena
-         if (m.type === 1) { // beast
+         if (m.type === 1 || m.type === 99) { // beast
             var m113s = slot.f.filter(function (x) {
                return x.id === 113;
             });
@@ -906,7 +906,7 @@ function Version20200728 () {
 
          // x 507 junkbot
          // x 607 kangor\'s apprentiee
-         if (m.type === 2) { // mech
+         if (m.type === 2 || m.type === 99) { // mech
             var m507s = slot.f.filter(function (x) {
                return x.id === 507;
             });
@@ -942,7 +942,7 @@ function Version20200728 () {
          // TODO: generic reborn; beast, murloc, mech buff ...
 
          // x 320 soul juggler
-         if (m.type === 4) { // demon
+         if (m.type === 4 || m.type === 99) { // demon
             var m320s = slot.f.filter(function (mf) {
                return mf.id === 320;
             });
@@ -1001,7 +1001,7 @@ function Version20200728 () {
             var v = m.flags.tri?4:2;
             slot.f.forEach(function (mf) {
                if (mf === m) return;
-               if (mf.type !== 3) return; // murloc
+               if (mf.type !== 3 && mf.type !== 99) return; // murloc
                mf.atk -= v;
             });
          }
@@ -1011,7 +1011,7 @@ function Version20200728 () {
             var v = m.flags.tri?2:1;
             slot.f.forEach(function (mf) {
                if (mf === m) return;
-               if (mf.type !== 6) return; // pirate
+               if (mf.type !== 6 && mf.type !== 99) return; // pirate
                mf.atk -= v;
                mf.hp -= v;
                if (mf.hp <= 0) mf.hp = 1;
@@ -1023,7 +1023,7 @@ function Version20200728 () {
             var v = m.flags.tri?2:1;
             slot.f.forEach(function (mf) {
                if (mf === m) return;
-               if (mf.type !== 4) return; // demon
+               if (mf.type !== 4 && mf.type !== 99) return; // demon
                mf.atk -= v;
             });
          }
@@ -1033,7 +1033,7 @@ function Version20200728 () {
             var v = m.flags.tri?4:2;
             slot.f.forEach(function (mf) {
                if (mf === m) return;
-               if (mf.type !== 4) return; // demon
+               if (mf.type !== 4 && mf.type !== 99) return; // demon
                mf.atk -= v;
                mf.hp -= v;
                if (mf.hp <= 0) mf.hp = 1;
@@ -1286,7 +1286,7 @@ function Version20200728 () {
                      if (mf === m) return;
                      if (mf.hp <= 0 || mf.flags.dead) return;
                      senv2.defenser = mf;
-                     if (m.flags.shield) {
+                     if (mf.flags.shield) {
                         mf.flags.shield = false;
                         G.event.triggerOutOfShield(mf, senv2);
                      } else {
@@ -1424,7 +1424,7 @@ function Version20200728 () {
                var times = m502;
                if (m.flags.tri) times *= 2;
                slot.f.forEach(function (m) {
-                  if (m.type !== 3) return; // murloc
+                  if (m.type !== 3 && m.type !== 99) return; // murloc
                   m.atk += 2 * times;
                   m.hp += 2 * times;
                });
@@ -1433,7 +1433,7 @@ function Version20200728 () {
                var times = m502;
                if (m.flags.tri) times *= 2;
                slot.f.forEach(function (m) {
-                  if (m.type !== 1) return; // beast
+                  if (m.type !== 1 && m.type !== 99) return; // beast
                   m.atk += 4 * times;
                   m.hp += 4 * times;
                });
@@ -1528,12 +1528,9 @@ function Version20200728 () {
                helper.shieldM306(slot.f, n);
             } break;
             case 610: { // nadina the red
-               var times = m502;
-               if (m.flags.tri) times *= 2;
                slot.f.forEach(function (m) {
-                  if (m.type !== 5) return; // dragon
-                  m.atk += times;
-                  m.hp += times;
+                  if (m.type !== 5 && m.type !== 99) return; // dragon
+                  m.flags.shield = true;
                });
             } break;
             case 611: { // the tide razor
