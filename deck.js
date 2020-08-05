@@ -363,15 +363,15 @@ function Version20200728 () {
          if (m312s.length) m312 = m312s.map(function (x) { return x.flags.tri?2:1; }).reduce(function (x, y) { return x+y; });
          return m312;
       },
-      countM602: function (slot) {
-         var m602s = slot.filter(function (x) {
+      countM502: function (slot) {
+         var m502s = slot.filter(function (x) {
             if (x.flags.dead) return false;
             if (x.hp <= 0) return false;
-            return x.id === 602;
+            return x.id === 502;
          });
-         var m602 = 1;
-         if (m602s.length) m602 = m602s.map(function (x) { return x.flags.tri?3:2; }).reduce(function (x, y) { return x>y?x:y; });
-         return m602;
+         var m502 = 1;
+         if (m502s.length) m502 = m502s.map(function (x) { return x.flags.tri?3:2; }).reduce(function (x, y) { return x>y?x:y; });
+         return m502;
       },
       countBeastSummonBuff: function (slot, buff) {
          // x 314 pack leader
@@ -860,8 +860,10 @@ function Version20200728 () {
       }
    };
    G.event.triggerDead = function (m, env, skipDeadBuff) {
+      // XXX: should trigger deathrattle round by round
+      //      instead of one by one
       var slot = G.event.getFriendEnemySlot(m, env);
-      var m602 = helper.countM602(slot.f);
+      var m502 = helper.countM502(slot.f);
       var m312 = helper.countM312(slot.f);
 
       if (m.flags.deathrattle) {
@@ -917,7 +919,7 @@ function Version20200728 () {
                   x.atk += 2;
                }
             });
-            var m607s = slot.f.filter(function x() {
+            var m607s = slot.f.filter(function (x) {
                return x.id === 607;
             })
             m607s.forEach(function (x) {
@@ -1071,11 +1073,10 @@ function Version20200728 () {
          switch(m.id) {
             case 17: { // treasure chest
                var queue = [];
-               for (var i = 0; i < m602 && queue.length <= 7; i++) {
+               for (var i = 0; i < m502 && queue.length <= 7; i++) {
                   var buff = {};
                   var sid = randomPick(constants.all);
                   var summon = api.newMinionById(sid, true);
-                  // TODO: if we summon 602 or 312, how to summon more minions?
                   helper.summonBeastBuff(summon, slot.f, buff);
                   queue.push(summon);
                   for (var j = m312; j > 0 && queue.length <= 7; j--) {
@@ -1091,6 +1092,9 @@ function Version20200728 () {
                   helper.summonPirateBuff(summon, slot.f, buff);
                }
                var n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
+               // recaculate 502/312
+               m502 = helper.countM502(slot.f);
+               m312 = helper.countM312(slot.f);
                var added = queue.slice(0, n);
                var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
                var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
@@ -1100,13 +1104,13 @@ function Version20200728 () {
             } break;
             case -1: { // #seeds
                var queue = [];
-               var n = m602 * (1 + m312);
+               var n = m502 * (1 + m312);
                var template = api.newMinionById(11, m.flags.tri);
                for (var i = 0; i < n; i++) queue.push(template.clone());
                G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
             } break;
             case 104: { // fiendish servant
-               var times = m602, i = 0;
+               var times = m502, i = 0;
                if (m.flags.tri) times *= 2;
                var targets = [];
                for (i = 0; i < times; i ++) {
@@ -1117,7 +1121,7 @@ function Version20200728 () {
             } break;
             case 105: { // mecharoo
                var queue = [];
-               var n = m602 * (1 + m312);
+               var n = m502 * (1 + m312);
                var template = api.newMinionById(8, m.flags.tri);
                for (var i = 0; i < n; i++) queue.push(template.clone());
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
@@ -1128,7 +1132,7 @@ function Version20200728 () {
                var template = api.newMinionById(14, m.flags.tri);
                var offset = 0;
                helper.summonPirateBuff(template, slot.f, buff);
-               for (var i = 0; i < m602; i++) {
+               for (var i = 0; i < m502; i++) {
                   for (var j = -1; j < m312; j ++) {
                      queue.push(template.clone());
                   }
@@ -1156,7 +1160,7 @@ function Version20200728 () {
                }
             } break;
             case 114: { // selfless hero
-               var times = m602, i = 0;
+               var times = m502, i = 0;
                if (m.flags.tri) times *= 2;
                var targets = [];
                var available = slot.f.filter(function (x) {
@@ -1173,7 +1177,7 @@ function Version20200728 () {
             } break;
             case 204: { // harvest golem
                var queue = [];
-               var n = m602 * (1 + m312);
+               var n = m502 * (1 + m312);
                var template = api.newMinionById(2, m.flags.tri);
                for (var i = 0; i < n; i++) queue.push(template.clone());
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
@@ -1181,7 +1185,7 @@ function Version20200728 () {
             } break;
             case 205: { // imprisoner
                var queue = [];
-               var n = m602 * (1 + m312);
+               var n = m502 * (1 + m312);
                var template = api.newMinionById(6, m.flags.tri);
                for (var i = 0; i < n; i++) {
                   var summon = template.clone();
@@ -1191,7 +1195,7 @@ function Version20200728 () {
                G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
             } break;
             case 206: { // kaboom bot
-               var times = m602, i = 0;
+               var times = m502, i = 0;
                if (m.flags.tri) times *= 2;
                var targets = [];
                for (i = 0; i < times; i ++) {
@@ -1235,7 +1239,7 @@ function Version20200728 () {
             case 207: { // kindly grandmother
                var queue = [];
                var template = api.newMinionById(1, m.flags.tri);
-               for (var i = 0; i < m602 && queue.length <= 7; i++) {
+               for (var i = 0; i < m502 && queue.length <= 7; i++) {
                   var summon = template.clone();
                   helper.summonBeastBuff(summon, slot.f, buff);
                   queue.push(summon);
@@ -1250,7 +1254,7 @@ function Version20200728 () {
             case 214: { // rat pack
                var queue = [];
                var template = api.newMinionById(12, m.flags.tri);
-               var n = m602 * m.atk;
+               var n = m502 * m.atk;
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var summon = template.clone();
                   helper.summonBeastBuff(summon, slot.f, buff);
@@ -1264,7 +1268,7 @@ function Version20200728 () {
                G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
             } break;
             case 216: { // spawn of n\'zoth
-               var times = m602;
+               var times = m502;
                if (m.flags.tri) times *= 2;
                slot.f.forEach(function (m) {
                   m.atk += times;
@@ -1272,7 +1276,7 @@ function Version20200728 () {
                });
             } break;
             case 218: { // unstable ghoul
-               var times = m602, i = 0;
+               var times = m502, i = 0;
                var senv1 = { attacker: slot.f[0], defenser: null };
                var senv2 = { attacker: slot.e[0], defenser: null };
                if (m.flags.tri) times *= 2;
@@ -1323,7 +1327,7 @@ function Version20200728 () {
             case 311: { // infested wolf
                var queue = [];
                var template = api.newMinionById(15, m.flags.tri);
-               var n = m602 * 2;
+               var n = m502 * 2;
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var summon = template.clone();
                   helper.summonBeastBuff(summon, slot.f, buff);
@@ -1338,11 +1342,10 @@ function Version20200728 () {
             } break;
             case 315: { // piloted shredder
                var queue = [];
-               var n = m602 * (m.flags.tri?2:1);
+               var n = m502 * (m.flags.tri?2:1);
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var sid = randomPick(constants.junior);
                   var summon = api.newMinionById(sid, false);
-                  // TODO: if we summon 602 or 312, how to summon more minions?
                   helper.summonBeastBuff(summon, slot.f, buff);
                   queue.push(summon);
                   for (var j = m312; j > 0 && queue.length <= 7; j--) {
@@ -1358,6 +1361,9 @@ function Version20200728 () {
                   helper.summonPirateBuff(summon, slot.f, buff);
                }
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
+               // recaculate 502/312
+               m502 = helper.countM502(slot.f);
+               m312 = helper.countM312(slot.f);
                var added = queue.slice(0, n);
                var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
                var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
@@ -1367,7 +1373,7 @@ function Version20200728 () {
             } break;
             case 316: { // replicating menace
                var queue = [];
-               var n = m602 * (1 + m312) * 3;
+               var n = m502 * (1 + m312) * 3;
                if (n > 7) n = 7;
                var template = api.newMinionById(9, m.flags.tri);
                for (var i = 0; i < n; i++) queue.push(template.clone());
@@ -1376,7 +1382,7 @@ function Version20200728 () {
             } break;
             case 321: { // the beast
                var queue = [];
-               var n = m602 * (1 + m312);
+               var n = m502 * (1 + m312);
                if (n > 7) n = 7;
                var template = api.newMinionById(3); // (3 3) and tri(3 3)
                for (var i = 0; i < n; i++) queue.push(template.clone());
@@ -1391,7 +1397,7 @@ function Version20200728 () {
             } break;
             case 411: { // mechano-egg
                var queue = [];
-               var n = m602 * (1 + m312);
+               var n = m502 * (1 + m312);
                if (n > 7) n = 7;
                var template = api.newMinionById(13, m.flags.tri);
                for (var i = 0; i < n; i++) queue.push(template.clone());
@@ -1401,7 +1407,7 @@ function Version20200728 () {
             case 414: { // savannah highmane
                var queue = [];
                var template = api.newMinionById(5, m.flags.tri);
-               var n = m602 * 2;
+               var n = m502 * 2;
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var summon = template.clone();
                   helper.summonBeastBuff(summon, slot.f, buff);
@@ -1415,7 +1421,7 @@ function Version20200728 () {
                G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
             } break;
             case 508: { // king bagurgle
-               var times = m602;
+               var times = m502;
                if (m.flags.tri) times *= 2;
                slot.f.forEach(function (m) {
                   if (m.type !== 3) return; // murloc
@@ -1424,7 +1430,7 @@ function Version20200728 () {
                });
             } break;
             case 613: { // goldrinn, the great wolf
-               var times = m602;
+               var times = m502;
                if (m.flags.tri) times *= 2;
                slot.f.forEach(function (m) {
                   if (m.type !== 1) return; // beast
@@ -1434,12 +1440,11 @@ function Version20200728 () {
             } break;
             case 516: { // sneed\'s old shredder
                var queue = [];
-               var n = m602 * (m.flags.tri?2:1);
+               var n = m502 * (m.flags.tri?2:1);
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var buff = {};
                   var sid = randomPick(constants.orange);
                   var summon = api.newMinionById(sid, false);
-                  // TODO: if we summon 602 or 312, how to summon more minions?
                   helper.summonBeastBuff(summon, slot.f, buff);
                   queue.push(summon);
                   for (var j = m312; j > 0 && queue.length <= 7; j--) {
@@ -1455,6 +1460,9 @@ function Version20200728 () {
                   helper.summonPirateBuff(summon, slot.f, buff);
                }
                n = G.event.addMinion(queue, slot.f, slot.f.indexOf(m) + 1);
+               // recaculate 502/312
+               m502 = helper.countM502(slot.f);
+               m312 = helper.countM312(slot.f);
                var added = queue.slice(0, n);
                var mechn = added.filter(function (x) { return x.type === 2 || x.type === 99; }).length;
                var murlocn = added.filter(function (x) { return x.type === 3 || x.type === 99; }).length;
@@ -1464,7 +1472,7 @@ function Version20200728 () {
             } break;
             case 518: { // viodlord
                var queue = [];
-               var n = m602 * (1 + m312);
+               var n = m502 * (1 + m312);
                var template = api.newMinionById(18, m.flags.tri);
                for (var i = 0; i < n; i++) {
                   var summon = template.clone();
@@ -1475,12 +1483,11 @@ function Version20200728 () {
             } break;
             case 604: { // ghastcoiler
                var queue = [];
-               var n = m602 * (m.flags.tri?4:2);
+               var n = m502 * (m.flags.tri?4:2);
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var buff = {};
                   var sid = randomPick(constants.deathrattle);
                   var summon = api.newMinionById(sid, false);
-                  // TODO: if we summon 602 or 312, how to summon more minions?
                   helper.summonBeastBuff(summon, slot.f, buff);
                   queue.push(summon);
                   for (var j = m312; j > 0 && queue.length <= 7; j--) {
@@ -1508,7 +1515,7 @@ function Version20200728 () {
                if (!m.flags.pool.length) break;
                var queue = [];
                var n = m.flags.pool.length;
-               for (var i = 0; i < m602 && queue.length <= 7; i ++) {
+               for (var i = 0; i < m502 && queue.length <= 7; i ++) {
                   for (var j = 0; j < n && queue.length <= 7; j++) {
                      var one = m.flags.pool[j];
                      var template = api.newMinionById(one.id, one.flags.tri);
@@ -1521,7 +1528,7 @@ function Version20200728 () {
                helper.shieldM306(slot.f, n);
             } break;
             case 610: { // nadina the red
-               var times = m602;
+               var times = m502;
                if (m.flags.tri) times *= 2;
                slot.f.forEach(function (m) {
                   if (m.type !== 5) return; // dragon
@@ -1531,7 +1538,7 @@ function Version20200728 () {
             } break;
             case 611: { // the tide razor
                var queue = [];
-               var n = m602 * 3;
+               var n = m502 * 3;
                for (var i = 0; i < n && queue.length <= 7; i++) {
                   var buff = {};
                   var sid = randomPick(constants.pirate);
