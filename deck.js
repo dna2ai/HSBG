@@ -1227,6 +1227,7 @@ function Version20200728 () {
                         target.hp -= 4;
                         G.event.triggerDamaged(target, subenv);
                         if (target.hp <= 0 || target.flags.dead) {
+                           target.flags.dead = true;
                            G.event.triggerDead(target, subenv);
                            if (target !== env.attacker || target !== env.defenser) {
                               G.event.delMinion(target, subenv);
@@ -1270,9 +1271,10 @@ function Version20200728 () {
             case 216: { // spawn of n\'zoth
                var times = m502;
                if (m.flags.tri) times *= 2;
-               slot.f.forEach(function (m) {
-                  m.atk += times;
-                  m.hp += times;
+               slot.f.forEach(function (mf) {
+                  if (m === mf) return;
+                  mf.atk += times;
+                  mf.hp += times;
                });
             } break;
             case 218: { // unstable ghoul
@@ -1423,19 +1425,21 @@ function Version20200728 () {
             case 508: { // king bagurgle
                var times = m502;
                if (m.flags.tri) times *= 2;
-               slot.f.forEach(function (m) {
-                  if (m.type !== 3 && m.type !== 99) return; // murloc
-                  m.atk += 2 * times;
-                  m.hp += 2 * times;
+               slot.f.forEach(function (mf) {
+                  if (m === mf) return;
+                  if (mf.type !== 3 && mf.type !== 99) return; // murloc
+                  mf.atk += 2 * times;
+                  mf.hp += 2 * times;
                });
             } break;
             case 613: { // goldrinn, the great wolf
                var times = m502;
                if (m.flags.tri) times *= 2;
-               slot.f.forEach(function (m) {
-                  if (m.type !== 1 && m.type !== 99) return; // beast
-                  m.atk += 4 * times;
-                  m.hp += 4 * times;
+               slot.f.forEach(function (mf) {
+                  if (m === mf) return;
+                  if (mf.type !== 1 && mf.type !== 99) return; // beast
+                  mf.atk += 4 * times;
+                  mf.hp += 4 * times;
                });
             } break;
             case 516: { // sneed\'s old shredder
@@ -1568,8 +1572,15 @@ function Version20200728 () {
          slot.f.push(barrier);
          var efirst = G.event.slots.first[slot.ecur], ei = efirst;
          var md = slot.e[ei];
+         // 1 2 3 4 5 6
+         // x
+         //   - - - - -
+         if (md === env.defenser) {
+            ei = (ei + 1) % slot.e.length;
+            md = slot.e[ei];
+         }
          var attacked = [];
-         while (md.hp > 0) {
+         while (md && md.hp > 0) {
             attacked.push(md);
             if (md.hp < virtual.atk) {
                md.flags.dead = true;
@@ -1579,6 +1590,7 @@ function Version20200728 () {
                // 1 2 3 4 5 6
                //     x
                // - -   - - -
+               if (!md) break;
                if ((md.hp <= 0 || md.flags.dead) && ei !== efirst) {
                   ei = (ei + 1) % slot.e.length;
                   md = slot.e[ei];
@@ -1588,13 +1600,23 @@ function Version20200728 () {
             }
             break;
          }
+         var dead = [];
          attacked.forEach(function (md) {
-            var env = { attacker: virtual, defenser: md };
             T.track([m.clone(), md.clone(), virtual.atk]); // debug
             virtual.attack(md);
             if (md.hp <= 0 || md.flags.dead) {
-               G.event.delMinion(md, env);
+               md.flags.dead = true;
+               dead.push(md);
             }
+         });
+         // XXX:
+         // e.g. 613 (4 1), 12 (1 1), 12 (1 1)
+         //      attack on 613 and all minions should die
+         //      should not: 613 die -> 12 (5 5) 12 (5 5)
+         //                          -3 12 (5 2) 12 (5 5)
+         dead.forEach(function (md) {
+            var denv = { attacker: virtual, defenser: md };
+            G.event.delMinion(md, denv);
          });
          slot.f.splice(slot.f.indexOf(virtual), 1);
          slot.f.splice(slot.f.indexOf(barrier), 1);

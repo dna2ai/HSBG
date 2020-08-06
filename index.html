@@ -2,7 +2,33 @@
    <body>
       <div>
          <div><textarea id="minions" rows=10 style="width:100%;"
-            placeholder="name/atk/hp/3SPRWT/deathrattleName/name*3/..."></textarea></div>
+            placeholder="name/atk/hp/3SPRWT/deathrattleName/name*3/..."># demo data
+# click "Go Fight!" to see result
+# nameOrId/atk/hp/3SPRWT/...deathrattles
+# e.g. # rat pack; atk=2, hp=2
+#      rat pack
+#      # rat pack; atk=7, hp=7
+#      rat pack/7/7
+#      # atk=32, hp=46, divineShield, Poisonous,
+#      # *2 seeds (#seeds = -1 -> deathrattle: 2 plants)
+#      murloc tidecaller/32/46/SP/-1/#seeds
+#      # deflect-o-bot = 306, atk=10, hp=4, no additional attribute,
+#      # *1 tri-replicatingMenace, *1 replicatingMenace
+#      306/10/4//316*3/316
+612
+411/2/7
+503
+614/12/6/SW
+611
+312/7/7/3
+-
+306/5/6
+306/5/8
+302/3/2
+302
+406
+107/8/20
+415/4/14/ST</textarea></div>
          <button id="fight" >Go Fight!</button>
          <button id="lookupna" >N/A</button>
          <button id="lookup1" >1</button>
@@ -14,7 +40,7 @@
          <button id="lookupother" >other</button>
          <div id="lookup"></div>
       </div>
-      <div id="result" style="width: 100%; height: 100%; margin-top: 5px;"></div>
+      <div id="result" style="width: 100%; margin-top: 5px;"></div>
       <style>
          table td { border-top: 1px solid black; }
       </style>
@@ -165,12 +191,21 @@
                if (r[0].length > 0 && r[1].length > 0) res.tie ++;
                else if (r[0].length > 0) {
                   res.a ++;
-                  res.ad += r[0].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
+                  res.ad += r[0].map(function (x) {
+                     var d = ~~(x.id/100);
+                     if (d < 0 || d === 0) d = 1;
+                     return d;
+                  }).reduce(function (x, y) { return x+y; });
                } else if (r[1].length > 0) {
                   res.b ++;
-                  res.bd += r[1].map(function (x) { return ~~(x.id/100); }).reduce(function (x, y) { return x+y; });
+                  res.bd += r[1].map(function (x) {
+                     var d = ~~(x.id/100);
+                     if (d < 0 || d === 0) d = 1;
+                     return d;
+                  }).reduce(function (x, y) { return x+y; });
+               } else {
+                  res.tie ++;
                }
-               else res.tie ++;
             }
 
             var lastR = G.sandbox(slotA, slotB);
@@ -235,33 +270,6 @@
             table.appendChild(tbody);
             result.appendChild(table);
          }
-
-         function demo() {
-            var slotA = [], slotB = [];
-            function last(slot) { return slot[slot.length-1]; }
-            slotA.push(api.newMinionById(612, false));
-            slotA.push(api.newMinionById(411, false));
-            last(slotA).hp = 7; last(slotA).atk = 2;
-            slotA.push(new Minion(-12, 2, 4, 0, {}));
-            slotA.push(new Minion(614, 12, 6, 99, { shield: true, windfury: true }));
-            slotA.push(api.newMinionById(611, false));
-            slotA.push(api.newMinionById(312, true));
-            last(slotA).hp = 7; last(slotA).atk = 7;
-            slotB.push(api.newMinionById(306, false));
-            last(slotB).hp = 6; last(slotB).atk = 5;
-            slotB.push(api.newMinionById(306, false));
-            last(slotB).hp = 8; last(slotB).atk = 5;
-            slotB.push(api.newMinionById(302, false));
-            last(slotB).hp = 2; last(slotB).atk = 3;
-            slotB.push(api.newMinionById(302, false));
-            slotB.push(api.newMinionById(406, false));
-            slotB.push(new Minion(-15, 8, 20, 3, {}));
-            slotB.push(api.newMinionById(415, false));
-            last(slotB).hp = 14; last(slotB).atk = 4; last(slotB).flags.taunt = true; last(slotB).flags.shield = true;
-            goFight(slotA, slotB);
-         }
-
-         demo();
       </script>
    </body>
 </html>
