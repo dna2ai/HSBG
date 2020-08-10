@@ -59,7 +59,7 @@
                case 'lookup4': list = G.pool.filter(function (x) { return ~~(x.id/100) === 4; }); break;
                case 'lookup5': list = G.pool.filter(function (x) { return ~~(x.id/100) === 5; }); break;
                case 'lookup6': list = G.pool.filter(function (x) { return ~~(x.id/100) === 6; }); break;
-               case 'lookupother': list = G.pool.filter(function (x) { return ~~(x.id/100) < 1 && x.id < 50; }); break;
+               case 'lookupother': list = G.pool.filter(function (x) { return ~~(x.id/100) < 1 && x.id > 0; }); break;
             }
             list.forEach(function (m) {
                var text = m.toString();
@@ -199,6 +199,7 @@
                } else if (r[1].length > 0) {
                   res.b ++;
                   res.bd += r[1].map(function (x) {
+                     if (!x) return 0;
                      var d = ~~(x.id/100);
                      if (d < 0 || d === 0) d = 1;
                      return d;

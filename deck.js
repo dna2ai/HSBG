@@ -127,6 +127,7 @@ var G = {
          if (slot1.length === 0 || slot2.length === 0) return true;
          if (slot1.length > 0) {
             atkgt0 += slot1.map(function (x) {
+               if (x.flags.noatk) return 0;
                return x.atk > 0?1:0;
             }).reduce(function (x, y) {
                return x + y;
@@ -137,6 +138,7 @@ var G = {
                // XXX: there is a bug that x is undefined;
                //      need to investigate where insert undefined
                if (!x) return 0;
+               if (x.flags.noatk) return 0;
                return x.atk > 0?1:0;
             }).reduce(function (x, y) {
                return x + y;
@@ -963,7 +965,7 @@ function Version20200728 () {
                var attacked = [];
                for (var i = 0; i < m320; i++) {
                   var available = slot.e.filter(function (x) {
-                     return x.hp > 0;
+                     return x.hp > 0 && x.id > 0;
                   });
                   var md = randomPick(available);
                   if (!md) break;
@@ -1011,6 +1013,7 @@ function Version20200728 () {
             var v = m.flags.tri?2:1;
             slot.f.forEach(function (mf) {
                if (mf === m) return;
+               if (mf.hp <= 0 || mf.flags.death) return;
                if (mf.type !== 6 && mf.type !== 99) return; // pirate
                mf.atk -= v;
                mf.hp -= v;
@@ -1033,6 +1036,7 @@ function Version20200728 () {
             var v = m.flags.tri?4:2;
             slot.f.forEach(function (mf) {
                if (mf === m) return;
+               if (mf.hp <= 0 || mf.flags.death) return;
                if (mf.type !== 4 && mf.type !== 99) return; // demon
                mf.atk -= v;
                mf.hp -= v;
@@ -1476,7 +1480,7 @@ function Version20200728 () {
             } break;
             case 518: { // viodlord
                var queue = [];
-               var n = m502 * (1 + m312);
+               var n = m502 * (1 + m312) * 3;
                var template = api.newMinionById(18, m.flags.tri);
                for (var i = 0; i < n; i++) {
                   var summon = template.clone();
@@ -1581,6 +1585,13 @@ function Version20200728 () {
          }
          var attacked = [];
          while (md && md.hp > 0) {
+            if (slot.e.length === 1) break; // only enemy and overkilled
+            if (md.hp <= 0 || md.flags.dead) {
+               ei = (ei + 1) % slot.e.length;
+               md = slot.e[ei];
+               continue;
+            }
+            if (attacked.indexOf(md) >= 0) break;
             attacked.push(md);
             if (md.hp < virtual.atk) {
                md.flags.dead = true;
@@ -1591,11 +1602,6 @@ function Version20200728 () {
                //     x
                // - -   - - -
                if (!md) break;
-               if ((md.hp <= 0 || md.flags.dead) && ei !== efirst) {
-                  ei = (ei + 1) % slot.e.length;
-                  md = slot.e[ei];
-                  if (attacked.indexOf(md) >= 0) break;
-               }
                continue;
             }
             break;
@@ -1614,13 +1620,17 @@ function Version20200728 () {
          //      attack on 613 and all minions should die
          //      should not: 613 die -> 12 (5 5) 12 (5 5)
          //                          -3 12 (5 2) 12 (5 5)
+         // e.g. another
+         //      17 (0 2), 614 (6 6)
+         //      attack on 17 by tri-409, all killed
+         //      if 17 summon tri-320, 614 die; should not trigger 2 shots
          dead.forEach(function (md) {
             var denv = { attacker: virtual, defenser: md };
             G.event.delMinion(md, denv);
          });
-         slot.f.splice(slot.f.indexOf(virtual), 1);
-         slot.f.splice(slot.f.indexOf(barrier), 1);
-         slot.f.splice(slot.f.indexOf(barrier), 1);
+         slot.f.splice(slot.f.lastIndexOf(barrier), 1);
+         slot.f.splice(slot.f.lastIndexOf(virtual), 1);
+         slot.f.splice(slot.f.lastIndexOf(barrier), 1);
       }
 
       // x 506 ironhide direhorn
